@@ -28,7 +28,7 @@ devices = lm_response['data']['items']
 
 device_array = {}
 for item in devices:
-	
+
 	device_name  = item['name']
 	system_props = item['systemProperties']
 	auto_props   = item['autoProperties']
@@ -49,7 +49,7 @@ for item in devices:
 		if('serial' in prop['name']):
 			device_array[f'{device_name}']['serialNumber'] = prop['value']
 		if('model' in prop['name']):
-			device_array[f'{device_name}']['model'] = prop['value']
+			device_array[f'{device_name}']['modelNumber'] = prop['value']
 		if(prop['name'] == 'auto.location'):
 			location = prop['value']
 	for prop in custom_props:
