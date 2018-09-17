@@ -18,7 +18,7 @@ Company   = 'bcservice'
 
 # Request Info
 resourcePath = '/device/devices'
-queryParams  ='?size=1000'
+queryParams  = '?size=1000'
 data         = ''
 
 thing = LM_GET(AccessId, AccessKey, Company, resourcePath, queryParams, data)
@@ -28,7 +28,7 @@ devices = lm_response['data']['items']
 
 device_array = {}
 for item in devices:
-
+	
 	device_name  = item['name']
 	system_props = item['systemProperties']
 	auto_props   = item['autoProperties']
