@@ -21,7 +21,7 @@ Included in this repo is an example key file (key.txt).  Replace the dummy value
 
 ## Setup
 
-This script requires the user to apply the 'company' property to devices which will be used to reference a company for the configuration object.  If no company of this name exists in ConnectWise already, a company will be created with this name.  Any device with no company device type will be assigned to an 'Unknown' company because all configurations must have an attached company.
+This script requires the user to apply the 'company' property to devices which will be used to reference a company for the configuration object.  If no company of this name exists in ConnectWise already, a company will be created with this name.  Any device with no 'company' device property will be assigned to an 'Unknown' company because all configurations must have an attached company.
 
 This script also requires the user to reference by id a group whose subgroups correspond to configuration types in Connectwise.  If no configuration type in Connectwise exists, one will be created because all configurations must be assigned a type.  The simplest solution to this problem is to reference LogicMonitor's 'Device by Type' group.
 
