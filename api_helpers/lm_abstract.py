@@ -17,7 +17,7 @@ def get_lm_device_types(_lm_id, _lm_key, _lm_account, _group_id):
 
 	for group in subgroups:
 		subgroup_name = group['name']
-		subgroup_id = group['id']
+		subgroup_id   = group['id']
 
 		sub_dict = {}
 		return_dict[f'{subgroup_name}'] = sub_dict
@@ -37,9 +37,9 @@ def get_lm_companies(_lm_id, _lm_key, _lm_account):
 	company_dict = {}
 	for item in json_dict:
 		found = False
-		custom_props = item['customProperties']
+		custom_props    = item['customProperties']
 		inherited_props = item['inheritedProperties']
-
+		
 		company = ''
 		for prop in inherited_props:
 			if(prop['name'] == 'company'):
@@ -55,5 +55,7 @@ def get_lm_companies(_lm_id, _lm_key, _lm_account):
 		if(found == True):
 			if(company not in company_dict.keys()):
 				company_dict[f'{company}'] = {}
+		# Account for devices with no company assigned
+		company_dict['Unknown'] = {}
 
 	return company_dict

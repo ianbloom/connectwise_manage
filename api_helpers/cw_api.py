@@ -115,6 +115,23 @@ def get_cw_type_by_name(_api_id, _api_key, _company, _connectwise_site, _name):
 
 	return return_dict
 
+def get_cw_config_by_name(_api_id, _api_key, _company, _connectwise_site, _name):
+	# Build request URL
+	url = f'https://{_connectwise_site}/v4_6_release/apis/3.0/company/configurations' + f'?conditions=name="{_name}"'
+
+	# Build header dictionary
+	header_dict = header_build(_company, _api_id, _api_key)
+
+	# Data is empty for this GET
+	data = ''
+
+	response = requests.get(url, data=data, headers=header_dict)
+
+	return_dict = {'code':response.status_code,
+				   'body':response.content}
+
+	return return_dict
+
 ###########
 # POSTERS #
 ###########
@@ -161,3 +178,49 @@ def post_cw_company_by_name(_api_id, _api_key, _company, _connectwise_site, _nam
 				   'body':response.content}
 
 	return return_dict
+
+def post_cw_configuration(_api_id, _api_key, _company, _connectwise_site, _config_dict):
+	# Build request URL
+	url = f'https://{_connectwise_site}/v4_6_release/apis/3.0/company/configurations'
+
+	# Build header dictionary
+	header_dict = header_build(_company, _api_id, _api_key)
+
+	# Data is a json string
+	data = json.dumps(_config_dict)
+
+	response = requests.post(url, data=data, headers=header_dict)
+
+	return_dict = {'code':response.status_code,
+				   'body':response.content}
+
+	return return_dict
+
+############
+# PATCHERS #
+############
+
+def patch_cw_configuration(_api_id, _api_key, _company, _connectwise_site, _config_dict, _config_id):
+	# Build request URL
+	url = f'https://{_connectwise_site}/v4_6_release/apis/3.0/company/configurations/{_config_id}'
+
+	# Build header dictionary
+	header_dict = header_build(_company, _api_id, _api_key)
+
+	patch_array = []
+
+	for key, value in _config_dict.items():
+		patch_dict = {'op':'replace',
+					  'path':key,
+					  'value':value}
+		patch_array.append(patch_dict)
+
+	data = json.dumps(patch_array)
+
+	response = requests.patch(url, data=data, headers=header_dict)
+
+	return_dict = {'code':response.status_code,
+				   'body':response.content}
+
+	return return_dict
+
