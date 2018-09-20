@@ -25,6 +25,8 @@ This script requires the user to apply the 'company' property to devices which w
 
 This script also requires the user to reference by id a group whose subgroups correspond to configuration types in Connectwise.  If no configuration type in Connectwise exists, one will be created because all configurations must be assigned a type.  The simplest solution to this problem is to reference LogicMonitor's 'Device by Type' group.
 
+**Lookups are performed by name, and users must be certain to match fields between CW and LM precisely**
+
 ## Usage
 
 For information about the required variables, run the following:
