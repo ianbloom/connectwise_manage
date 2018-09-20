@@ -5,7 +5,7 @@ This script that takes several LogicMonitor reports and a keyfile as input, and 
 
 ## Installation
 
-To install this package, run the following:
+To install this package, run the following at your command line:
 
 ```
 git clone https://github.com/ianbloom/connectwise_manage.git
