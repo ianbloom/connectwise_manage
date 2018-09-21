@@ -9,17 +9,6 @@ from io import StringIO
 import argparse
 from pprint import *
 
-# AccessId  = 'tZ3u4e8k8y2M3ttevFj6'
-# AccessKey = 'Xe5~e4P%9kErB(98Ri89h5]CJ4j~w}Dy)wGJ6k%4'
-# Company   = 'bcservice'
-
-# cw_api_id  = 'SfefZokssi9JFFuK'
-# cw_api_key = 'EOjLXH5wVI9krM32'
-# cw_company = 'logicmonitor_f'
-# cw_site    = 'staging.connectwisedev.com'
-
-# group_id = 70
-
 #########################
 # CLI ARGUMENT HANDLING #
 #########################
