@@ -35,9 +35,9 @@ For information about the required variables, run the following:
 python connectwise_scrape.py -h
 ```
 
-This script takes five arguments:
+This script takes two arguments:
 * _-file_ : Path to file containing API credentials
-* _-help_ : The ID of a LogicMonitor device group whose subgroups correspond to Connectwise Configuration Types
+* _-id_ : The ID of a LogicMonitor device group whose subgroups correspond to Connectwise Configuration Types
 
 ## Example
 
