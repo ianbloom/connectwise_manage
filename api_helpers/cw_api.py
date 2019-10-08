@@ -1,6 +1,6 @@
 #! /usr/bin/python
 
-from api_func import *
+# from api_func import *
 import json
 import sys
 import argparse
