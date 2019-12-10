@@ -1,9 +1,7 @@
 #! /usr/bin/python
 
-#from api_func.api_func import *
 import api_helpers.cw_abstract as API
 import pandas, json, sys, argparse
-#from io import StringIO
 from pprint import pprint
 
 debug = True
@@ -33,22 +31,17 @@ cw_creds = {
 	"_cw_agentId": config['cw_agentId']
 }
 creds = {}
-creds.update(lm_creds)
-creds.update(cw_creds)
+creds.update(lm_creds).update(cw_creds)
 
 # Synchronize Types from LM to CW
 get_types = API.type_sync(_group_id = config['lm_group_id'], **creds)
 type_dict = get_types.items()
-if get_types["result"] == False:
-	print(f"Error synchronizing ConnectWise types.\n{get_types['items']}\n")
-	type_dict = {}
+if get_types["result"] == False: print(f"Error synchronizing ConnectWise types.\n{get_types['items']}\n"); type_dict = {}
 
 # Synchronize Companies from LM to CW
 get_companies = API.company_sync(**creds)
 company_dict = get_companies.items()
-if get_companies["result"] == False:
-	print(f"Error synchronizing ConnectWise companies.\n{get_companies['items']}\n")
-	company_dict = {}
+if get_companies["result"] == False: print(f"Error synchronizing ConnectWise companies.\n{get_companies['items']}\n"); company_dict = {}
 
 ###########################
 # GET ALL DEVICES FROM LM #
