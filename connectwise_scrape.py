@@ -94,10 +94,11 @@ for item in devices:
 	##############
 	#extract device properties from LM data to use in CW fields
 	all_properties = {}
-	all_properties.update(item['systemProperties'])
-	all_properties.update(item['autoProperties'])
-	all_properties.update(item['customProperties'])
-	all_properties.update(item['inheritedProperties'])
+	for dict in item['systemProperties']:    all_properties[dict['name']] = dict['value']
+	for dict in item['systemProperties']:    all_properties[dict['name']] = dict['value']
+	for dict in item['autoProperties']:      all_properties[dict['name']] = dict['value']
+	for dict in item['customProperties']:    all_properties[dict['name']] = dict['value']
+	for dict in item['inheritedProperties']: all_properties[dict['name']] = dict['value']
 
 	for key, value in all_properties.items():
 		if(key == 'system.ips'): device_array[device_name]['ipAddress'] = value.split(',')[0]
