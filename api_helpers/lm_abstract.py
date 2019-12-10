@@ -39,7 +39,7 @@ def get_lm_companies(_lm_id, _lm_key, _lm_account):
 		found = False
 		custom_props    = item['customProperties']
 		inherited_props = item['inheritedProperties']
-		
+
 		company = ''
 		for prop in inherited_props:
 			if(prop['name'] == 'company'):
@@ -51,7 +51,7 @@ def get_lm_companies(_lm_id, _lm_key, _lm_account):
 				company = prop['value']
 				found = True
 
-		# If we don't have a defined company then don't bother trying to add to dictionary		
+		# If we don't have a defined company then don't bother trying to add to dictionary
 		if(found == True):
 			if(company not in company_dict.keys()):
 				company_dict[f'{company}'] = {}

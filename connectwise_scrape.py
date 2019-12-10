@@ -1,101 +1,114 @@
 #! /usr/bin/python
 
-from api_func.api_func import *
-from api_helpers.cw_abstract import *
-import pandas
-import json
-import sys
-from io import StringIO
-import argparse
-from pprint import *
+#from api_func.api_func import *
+import api_helpers.cw_abstract as API
+import pandas, json, sys, argparse
+#from io import StringIO
+from pprint import pprint
+
+query_size = 1000 #number of items to pull from the LM API, helps with pagination
 
 #########################
 # CLI ARGUMENT HANDLING #
 #########################
-
 parser=argparse.ArgumentParser()
-
-parser.add_argument('-file', help='Path to file containing API credentials')
-parser.add_argument('-id', help='The ID of a LogicMonitor device group whose subgroups correspond to Connectwise Configuration Types')
-
+parser.add_argument('-file', help='Path to file containing API credentials', default='keyfile.txt')
 args = parser.parse_args()
 
 ###################
 # PARSE API CREDS #
 ###################
+with open(args.file) as file: config = json.loads(file.read())
+lm_creds = {
+	"_lm_api_id": config['lm_id'],
+	"_lm_api_key": config['lm_key'],
+	"_lm_company": config['lm_company']
+}
+cw_creds = {
+	"_cw_api_id": config['cw_id'],
+	"_cw_api_key": config['cw_key'],
+	"_cw_company": config['cw_company'],
+	"_cw_site": config['cw_site']
+}
+creds = {}
+creds.update(lm_creds)
+creds.update(cw_creds)
 
-key_file_path = args.file
-file = open(key_file_path, 'r')
-file_text = file.read()
+###########################
+# GET ALL DEVICES FROM LM #
+###########################
+# Synchronize Types from LM to CW
+get_types = API.type_sync(_group_id = config['lm_group_id'],**creds)
+type_dict = get_types.items()
+if get_types["result"] == False:
+	print(f"Error synchronizing ConnectWise types.\n{get_types['items']}\n")
+	type_dict = {}
 
-key_file_json = json.loads(file_text)
-AccessId = key_file_json['lm_id']
-AccessKey = key_file_json['lm_key']
-Company = key_file_json['lm_company']
-
-cw_api_id  = key_file_json['cw_id']
-cw_api_key = key_file_json['cw_key']
-cw_company = key_file_json['cw_company']
-cw_site    = key_file_json['cw_site']
-
-group_id = args.id
-
-###################################
-# GET ALL DEVICES WITH DS APPLIED #
-###################################
-
-# Build type dict
-type_dict = type_sync(AccessId, AccessKey, Company, group_id, cw_api_id, cw_api_key, cw_company, cw_site)
-company_dict = company_sync(AccessId, AccessKey, Company, cw_api_id, cw_api_key, cw_company, cw_site)
+# Synchronize Companies from LM to CW
+get_companies = API.company_sync(**creds)
+company_dict = get_companies.items()
+if get_companies["result"] == False:
+	print(f"Error synchronizing ConnectWise companies.\n{get_companies['items']}\n")
+	company_dict = {}
 
 # Request Info
 resourcePath = '/device/devices'
-queryParams  = '?size=1000'
 data         = ''
 
-thing = LM_GET(AccessId, AccessKey, Company, resourcePath, queryParams, data)
+last_item_found = False
+devices = []
+while not last_item_found:
+	queryParams  = f'?size={query_size}&offset={len(devices)}'
+	current_call_devices = json.loads(API.LM_GET(config['lm_id'], config['lm_key'], config['lm_company'], resourcePath, queryParams, data)['body'])['data']['items']
+	if len(current_call_devices) < query_size: last_item_found = True
+	devices += current_call_devices
 
-devices = json.loads(thing['body'])['data']['items']
+#for device in devices: #uncomment this block to see the details of all devices pulled from LM
+#	print(f"""ID: {device['id']}
+#	Name: {device['name']}
+#	hostGroupIds: {device['hostGroupIds']}""")
+#	print("customProperties:")
+#	pprint(device['customProperties'])
+#	print("systemProperties")
+#	pprint(device['systemProperties'])
+#	print("autoProperties")
+#	pprint(device['autoProperties'])
+#	print("inheritedProperties")
+#	pprint(device['inheritedProperties'])
 
 device_array = {}
 for item in devices:
-	
+	#gather information from the device in LM
 	device_name  = item['name']
-	system_props = item['systemProperties']
-	auto_props   = item['autoProperties']
-	custom_props = item['customProperties']
-	inherited_props = item['inheritedProperties']
 
-	device_array[f'{device_name}'] = {}
+	#create an entry in the final array for this device
+	device_array[device_name] = {}
 
-	# Properties coming from competing API objects defined below
-	company = ''
-	for prop in system_props:
-		if(prop['name'] == 'system.ips'):
-			first_ip = prop['value'].split(',')[0]
-			device_array[f'{device_name}']['ipAddress'] = first_ip
-		elif(prop['name'] == 'system.sysinfo'):
-			os_type = prop['value'][:250]
-			device_array[f'{device_name}']['osType'] = os_type
-		elif(prop['name'] == 'system.uptime'):
-			device_array[f'{device_name}']['uptime'] = prop['value']
-		elif(prop['name'] == 'system.model'):
-			model = prop['value'][:50]
-			device_array[f'{device_name}']['modelNumber'] = model
-	for prop in auto_props:
-		if('serial' in prop['name']):
-			device_array[f'{device_name}']['serialNumber'] = prop['value']
-		if('model' in prop['name']):
-			model = prop['value'][:50]
-			device_array[f'{device_name}']['modelNumber'] = model
-	for prop in custom_props:
-		if(prop['name'] == 'location'):
-			location = prop['value']
-		if(prop['name'] == 'company'):
-			company = prop['value']
-	for prop in inherited_props:
-		if(prop['name'] == 'company'):
-			company = prop['value']
+	########
+	# NAME #
+	########
+	device_array[device_name]['name'] = device_name
+
+	##############
+	# PROPERTIES #
+	##############
+	#extract device properties from LM data to use in CW fields
+	all_properties = {}
+	all_properties.update(item['systemProperties'])
+	all_properties.update(item['autoProperties'])
+	all_properties.update(item['customProperties'])
+	all_properties.update(item['inheritedProperties'])
+
+	for key, value in all_properties.items():
+		if(key == 'system.ips'): device_array[device_name]['ipAddress'] = value.split(',')[0]
+		if(key == 'system.sysinfo'):   device_array[device_name]['osType'] = value[:250]
+		if(key == 'system.uptime'):    device_array[device_name]['uptime'] = value
+		if(key == 'system.model'):     device_array[device_name]['modelNumber'] = value[:50]
+		if('serial' in key):           device_array[device_name]['serialNumber'] = value
+		if('model' in key):            device_array[device_name]['modelNumber'] = value[:50]
+		if(key == 'location'):         location = value #i don't think this is used anywhere
+		if(key == 'company'):          company = value
+		else:                          company = 'Unknown'
 
 	########
 	# TYPE #
@@ -103,55 +116,54 @@ for item in devices:
 
 	# Let's figure out best Configuration Type to use
 	# Initialize array of host groups and check which 'Device by Type' group we're in
-	host_group_string = item['hostGroupIds']
-	host_group_array = host_group_string.split(',')
-	# I just love this trick!
+	host_group_array = item['hostGroupIds'].split(',')
+	# I just love this trick! (list comprehension)
 	host_group_array = [int(x) for x in host_group_array]
 
 	# Initialize an array to hold all 'Device by Type' groups that this device is a member of
 	return_type_array = []
+	#check all the available LM types to see if any of them belong to this device
 	for key, value in type_dict.items():
-		# Let's exclude the Collectors group
-		if(key != 'Collectors'):
-			if(value['lm_id'] in host_group_array):
-				return_type_array.append(key)
-	# Every device must have a configuration type, so append 'Misc' if it's missing
-	if(return_type_array == []):
-		return_type_array.append('Misc')
-	# Prioritize type alphabetically, then look up ID and NAME
-	device_array[f'{device_name}']['type'] = {'id': type_dict[return_type_array[0]]['cw_id'],
-	                                          'name': return_type_array[0]}
+		#ignore the collector type. if this type belongs to the host...
+		if key != 'Collectors' and value['lm_id'] in host_group_array: return_type_array.append(key)
+		# Every device must have a configuration type, so append 'Misc' if it's missing
+	return_type_array.append('Misc')
+
+	# Assign a type dict that contains the type ID and type Name to this device
+	if len(type_dict) > 0: type_id = type_dict[return_type_array[0]]['cw_id']
+	else: type_id = 0
+	device_array[device_name]['type'] = {'id': type_id, 'name': return_type_array[0]}
 
 	###########
 	# COMPANY #
 	###########
 
-	# All devices must be POSTed with a reference to a company in CW, thus the 'Unknown'
-	if(company == ''):
-		company = 'Unknown'
-	device_array[f'{device_name}']['company'] = {'id': company_dict[company]['cw_id'],
-	                                             'name': company,
-	                                             'identifier': company_dict[company]['cw_identifier']}
+	# Add a company dict containing the company information to this device
+	if len(company_dict) > 0:
+		company_id = company_dict[company]['cw_id']
+		company_identifier = company_dict[company]['cw_identifier']
+	else:
+		company_id = 0
+		company_identifier = 0
+	device_array[device_name]['company'] = {'id': company_id, 'name': company, 'identifier': company_identifier}
 
-	########
-	# NAME #
-	########
+pprint(device_array)
 
-	device_array[f'{device_name}']['name'] = device_name
+quit()
 
 #############################
 # POST/PATCH CONFIGURATIONS #
 #############################
 
 for key, value in device_array.items():
-	get_body = get_cw_config_by_name(cw_api_id, cw_api_key, cw_company, cw_site, key)['body'].decode()
+	get_body = API.get_cw_config_by_name(config['cw_id'], config['cw_key'], config['cw_company'], config['cw_site'], key)['body'].decode()
 	if(get_body == '[]'):
-		answer = post_cw_configuration(cw_api_id, cw_api_key, cw_company, cw_site, value)
+		answer = API.post_cw_configuration(config['cw_id'], config['cw_key'], config['cw_company'], config['cw_site'], value)
 		if(answer['code'] == 200 or answer['code'] == 201):
 			print(f'Record for {key} successfully created')
 		else:
 			print(f'Unable to create record for {key} with response code {answer["code"]}')
-			second_attempt = post_cw_configuration(cw_api_id, cw_api_key, cw_company, cw_site, value)
+			second_attempt = API.post_cw_configuration(config['cw_id'], config['cw_key'], config['cw_company'], config['cw_site'], value)
 			print(f'Second attempt has produced response code {second_attempt["code"]}')
 			print(f'Response Body')
 			print(f'=============')
@@ -160,12 +172,12 @@ for key, value in device_array.items():
 		get_json = json.loads(get_body)
 		get_id = get_json[0]['id']
 
-		patch_dict = patch_cw_configuration(cw_api_id, cw_api_key, cw_company, cw_site, value, get_id)
+		patch_dict = API.patch_cw_configuration(config['cw_id'], config['cw_key'], config['cw_company'], config['cw_site'], value, get_id)
 		if(patch_dict['code'] == 200 or answer['code'] == 201):
 			print(f'Record for {key} successfully updated')
 		else:
 			print(f'Unable to update record for {key} with response code {answer["code"]}')
-			second_attempt = post_cw_configuration(cw_api_id, cw_api_key, cw_company, cw_site, value)
+			second_attempt = API.post_cw_configuration(config['cw_id'], config['cw_key'], config['cw_company'], config['cw_site'], value)
 			print(f'Second attempt has produced response code {second_attempt["code"]}')
 			print(f'Response Body')
 			print(f'=============')
