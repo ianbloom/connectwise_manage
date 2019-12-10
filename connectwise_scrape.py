@@ -6,6 +6,7 @@ import pandas, json, sys, argparse
 #from io import StringIO
 from pprint import pprint
 
+debug = False
 query_size = 1000 #number of items to pull from the LM API, helps with pagination
 
 #########################
@@ -28,7 +29,8 @@ cw_creds = {
 	"_cw_api_id": config['cw_id'],
 	"_cw_api_key": config['cw_key'],
 	"_cw_company": config['cw_company'],
-	"_cw_site": config['cw_site']
+	"_cw_site": config['cw_site'],
+	"_cw_agentId": config['cw_agentId']
 }
 creds = {}
 creds.update(lm_creds)
@@ -38,7 +40,7 @@ creds.update(cw_creds)
 # GET ALL DEVICES FROM LM #
 ###########################
 # Synchronize Types from LM to CW
-get_types = API.type_sync(_group_id = config['lm_group_id'],**creds)
+get_types = API.type_sync(_group_id = config['lm_group_id'], **creds)
 type_dict = get_types.items()
 if get_types["result"] == False:
 	print(f"Error synchronizing ConnectWise types.\n{get_types['items']}\n")
@@ -64,20 +66,20 @@ while not last_item_found:
 	if len(current_call_devices) < query_size: last_item_found = True
 	devices += current_call_devices
 
-#uncomment this block to see the details of all devices pulled from LM
-#for device in devices:
-#	print(f"""ID: {device['id']}
-#	Name: {device['name']}
-#	displayName: {device['displayName']}
-#	hostGroupIds: {device['hostGroupIds']}""")
-#	print("\tcustomProperties:")
-#	pprint(device['customProperties'])
-#	print("\tsystemProperties")
-#	pprint(device['systemProperties'])
-#	print("\tautoProperties")
-#	pprint(device['autoProperties'])
-#	print("\tinheritedProperties")
-#	pprint(device['inheritedProperties'])
+if debug:
+	for device in devices:
+		print(f"""ID: {device['id']}
+		Name: {device['name']}
+		displayName: {device['displayName']}
+		hostGroupIds: {device['hostGroupIds']}""")
+		print("\tcustomProperties:")
+		pprint(device['customProperties'])
+		print("\tsystemProperties")
+		pprint(device['systemProperties'])
+		print("\tautoProperties")
+		pprint(device['autoProperties'])
+		print("\tinheritedProperties")
+		pprint(device['inheritedProperties'])
 
 device_array = {}
 for item in devices:
@@ -148,39 +150,33 @@ for item in devices:
 		company_identifier = 0
 	device_array[device_name]['company'] = {'id': company_id, 'name': company, 'identifier': company_identifier}
 
-	#print("=" * 80);print(item);pprint(device_array[device_name])
-pprint(device_array)
+	if debug: print("=" * 80);print(item);pprint(device_array[device_name])
+if debug: pprint(device_array)
+else: print(device_array)
 
 quit()
 
 #############################
-# POST/PATCH CONFIGURATIONS #
+# SEND ITEMS TO CONNECTWISE #
 #############################
 
 for key, value in device_array.items():
-	get_body = API.get_cw_config_by_name(config['cw_id'], config['cw_key'], config['cw_company'], config['cw_site'], key)['body'].decode()
+	#find out what information CW has on this item
+	get_body = API.get_cw_config_by_name(_name = key, **cw_creds)['body'].decode()
+	#if this item doesn't exist in CW, post it there.
 	if(get_body == '[]'):
-		answer = API.post_cw_configuration(config['cw_id'], config['cw_key'], config['cw_company'], config['cw_site'], value)
-		if(answer['code'] == 200 or answer['code'] == 201):
-			print(f'Record for {key} successfully created')
+		answer = API.post_cw_configuration(_config_dict = value, **cw_creds)
+		if(answer['code'] == 200 or answer['code'] == 201): print(f'Record for {key} successfully created')
 		else:
-			print(f'Unable to create record for {key} with response code {answer["code"]}')
-			second_attempt = API.post_cw_configuration(config['cw_id'], config['cw_key'], config['cw_company'], config['cw_site'], value)
-			print(f'Second attempt has produced response code {second_attempt["code"]}')
-			print(f'Response Body')
-			print(f'=============')
-			print(second_attempt['body'])
+			print(f'Unable to create record for {key} with response code {answer["code"]}. Retrying...')
+			second_attempt = API.post_cw_configuration(_config_dict = value, **cw_creds)
+			print(f'Second attempt has produced response code {second_attempt["code"]}\nResponse Body\n{"=" * 80}\n{second_attempt["body"]}')
+	#else, the item already exists, patch it with new information
 	else:
-		get_json = json.loads(get_body)
-		get_id = get_json[0]['id']
-
-		patch_dict = API.patch_cw_configuration(config['cw_id'], config['cw_key'], config['cw_company'], config['cw_site'], value, get_id)
-		if(patch_dict['code'] == 200 or answer['code'] == 201):
-			print(f'Record for {key} successfully updated')
+		get_id = json.loads(get_body)[0]['id']
+		patch_dict = API.patch_cw_configuration(_config_dict = value, _config_id = get_id, **cw_creds)
+		if(patch_dict['code'] == 200 or answer['code'] == 201): print(f'Record for {key} successfully updated')
 		else:
-			print(f'Unable to update record for {key} with response code {answer["code"]}')
-			second_attempt = API.post_cw_configuration(config['cw_id'], config['cw_key'], config['cw_company'], config['cw_site'], value)
-			print(f'Second attempt has produced response code {second_attempt["code"]}')
-			print(f'Response Body')
-			print(f'=============')
-			print(second_attempt['body'])
+			print(f'Unable to update record for {key} with response code {answer["code"]}. Retrying...')
+			second_attempt = API.patch_cw_configuration(_config_dict = value, _config_id = get_id, **cw_creds)
+			print(f'Second attempt has produced response code {second_attempt["code"]}\nResponse Body\n{"=" * 80}\n{second_attempt["body"]}')
