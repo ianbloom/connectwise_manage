@@ -57,29 +57,32 @@ data         = ''
 
 last_item_found = False
 devices = []
+fields = 'id,name,displayName,hostGroupIds,customProperties,systemProperties,autoProperties,inheritedProperties'
 while not last_item_found:
-	queryParams  = f'?size={query_size}&offset={len(devices)}'
+	queryParams  = f'?size={query_size}&offset={len(devices)}&fields={fields}'
 	current_call_devices = json.loads(API.LM_GET(config['lm_id'], config['lm_key'], config['lm_company'], resourcePath, queryParams, data)['body'])['data']['items']
 	if len(current_call_devices) < query_size: last_item_found = True
 	devices += current_call_devices
 
-#for device in devices: #uncomment this block to see the details of all devices pulled from LM
+#uncomment this block to see the details of all devices pulled from LM
+#for device in devices:
 #	print(f"""ID: {device['id']}
 #	Name: {device['name']}
+#	displayName: {device['displayName']}
 #	hostGroupIds: {device['hostGroupIds']}""")
-#	print("customProperties:")
+#	print("\tcustomProperties:")
 #	pprint(device['customProperties'])
-#	print("systemProperties")
+#	print("\tsystemProperties")
 #	pprint(device['systemProperties'])
-#	print("autoProperties")
+#	print("\tautoProperties")
 #	pprint(device['autoProperties'])
-#	print("inheritedProperties")
+#	print("\tinheritedProperties")
 #	pprint(device['inheritedProperties'])
 
 device_array = {}
 for item in devices:
 	#gather information from the device in LM
-	device_name  = item['name']
+	device_name = item['displayName']
 
 	#create an entry in the final array for this device
 	device_array[device_name] = {}
@@ -101,25 +104,22 @@ for item in devices:
 	for dict in item['inheritedProperties']: all_properties[dict['name']] = dict['value']
 
 	for key, value in all_properties.items():
-		if(key == 'system.ips'): device_array[device_name]['ipAddress'] = value.split(',')[0]
-		if(key == 'system.sysinfo'):   device_array[device_name]['osType'] = value[:250]
-		if(key == 'system.uptime'):    device_array[device_name]['uptime'] = value
-		if(key == 'system.model'):     device_array[device_name]['modelNumber'] = value[:50]
-		if('serial' in key):           device_array[device_name]['serialNumber'] = value
-		if('model' in key):            device_array[device_name]['modelNumber'] = value[:50]
-		if(key == 'location'):         location = value #i don't think this is used anywhere
-		if(key == 'company'):          company = value
-		else:                          company = 'Unknown'
+		if(key == 'system.ips'):     device_array[device_name]['ipAddress'] = value.split(',')[0]
+		if(key == 'system.sysinfo'): device_array[device_name]['osType'] = value[:250]
+		if(key == 'system.uptime'):  device_array[device_name]['uptime'] = value
+		if(key == 'system.model'):   device_array[device_name]['modelNumber'] = value[:50]
+		if('serial' in key):         device_array[device_name]['serialNumber'] = value
+		if('model' in key):          device_array[device_name]['modelNumber'] = value[:50]
+		if(key == 'location'):       device_array[device_name]['location'] = value
+		if(key == 'company'):        company = value
+		else:                        company = 'Unknown'
 
 	########
 	# TYPE #
 	########
-
 	# Let's figure out best Configuration Type to use
 	# Initialize array of host groups and check which 'Device by Type' group we're in
-	host_group_array = item['hostGroupIds'].split(',')
-	# I just love this trick! (list comprehension)
-	host_group_array = [int(x) for x in host_group_array]
+	host_group_array = [int(x) for x in item['hostGroupIds'].split(',')]
 
 	# Initialize an array to hold all 'Device by Type' groups that this device is a member of
 	return_type_array = []
@@ -127,7 +127,7 @@ for item in devices:
 	for key, value in type_dict.items():
 		#ignore the collector type. if this type belongs to the host...
 		if key != 'Collectors' and value['lm_id'] in host_group_array: return_type_array.append(key)
-		# Every device must have a configuration type, so append 'Misc' if it's missing
+	# Every device must have a configuration type, so append 'Misc' if it's missing
 	return_type_array.append('Misc')
 
 	# Assign a type dict that contains the type ID and type Name to this device
@@ -148,6 +148,7 @@ for item in devices:
 		company_identifier = 0
 	device_array[device_name]['company'] = {'id': company_id, 'name': company, 'identifier': company_identifier}
 
+	#print("=" * 80);print(item);pprint(device_array[device_name])
 pprint(device_array)
 
 quit()
