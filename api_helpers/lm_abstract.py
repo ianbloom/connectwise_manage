@@ -28,14 +28,17 @@ def get_lm_device_types(_lm_id, _lm_key, _lm_account, _group_id):
 
 def get_lm_companies(_lm_id, _lm_key, _lm_account):
 	resource_path = '/device/devices'
-	query_params  = '?size=1000'
 	data          = ''
-
-	return_dict = LM_GET(_lm_id, _lm_key, _lm_account, resource_path, query_params, data)
-	json_dict = json.loads(return_dict['body'])['data']['items']
+	last_item_found = False
+	devices = []
+	while not last_item_found:
+		query_params  = f'?size=1000&offset={len(devices)}'
+		current_call_devices = json.loads(LM_GET(_lm_id, _lm_key, _lm_account, resource_path, query_params, data)['body'])['data']['items']
+		if len(current_call_devices) < 1000: last_item_found = True
+		devices += current_call_devices
 	# Initialize company_dict
 	company_dict = {}
-	for item in json_dict:
+	for item in devices:
 		found = False
 		custom_props    = item['customProperties']
 		inherited_props = item['inheritedProperties']
