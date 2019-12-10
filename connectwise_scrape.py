@@ -161,21 +161,25 @@ else: print(device_array)
 
 for key, value in device_array.items():
 	#find out what information CW has on this item
-	get_body = API.get_cw_config_by_name(_name = key, **cw_creds)['body'].decode()
-	#if this item doesn't exist in CW, post it there.
-	if(get_body == '[]'):
-		answer = API.post_cw_configuration(_config_dict = value, **cw_creds)
-		if(answer['code'] == 200 or answer['code'] == 201): print(f'Record for {key} successfully created')
+	raw_response = API.get_cw_config_by_name(_name = key, **cw_creds)
+	if raw_response['code'] == 200 or raw_response['code'] == 201:
+		get_body = raw_response['body'].decode()
+		#if this item doesn't exist in CW, post it there.
+		if(get_body == '[]'):
+			answer = API.post_cw_configuration(_config_dict = value, **cw_creds)
+			if(answer['code'] == 200 or answer['code'] == 201): print(f'Record for {key} successfully created')
+			else:
+				print(f'Unable to create record for {key} with response code {answer["code"]}. Retrying...')
+				second_attempt = API.post_cw_configuration(_config_dict = value, **cw_creds)
+				print(f'Second attempt has produced response code {second_attempt["code"]}\nResponse Body\n{"=" * 80}\n{second_attempt["body"]}')
+		#else, the item already exists, patch it with new information
 		else:
-			print(f'Unable to create record for {key} with response code {answer["code"]}. Retrying...')
-			second_attempt = API.post_cw_configuration(_config_dict = value, **cw_creds)
-			print(f'Second attempt has produced response code {second_attempt["code"]}\nResponse Body\n{"=" * 80}\n{second_attempt["body"]}')
-	#else, the item already exists, patch it with new information
+			get_id = json.loads(get_body)[0]['id']
+			patch_dict = API.patch_cw_configuration(_config_dict = value, _config_id = get_id, **cw_creds)
+			if(patch_dict['code'] == 200 or answer['code'] == 201): print(f'Record for {key} successfully updated')
+			else:
+				print(f'Unable to update record for {key} with response code {answer["code"]}. Retrying...')
+				second_attempt = API.patch_cw_configuration(_config_dict = value, _config_id = get_id, **cw_creds)
+				print(f'Second attempt has produced response code {second_attempt["code"]}\nResponse Body\n{"=" * 80}\n{second_attempt["body"]}')
 	else:
-		get_id = json.loads(get_body)[0]['id']
-		patch_dict = API.patch_cw_configuration(_config_dict = value, _config_id = get_id, **cw_creds)
-		if(patch_dict['code'] == 200 or answer['code'] == 201): print(f'Record for {key} successfully updated')
-		else:
-			print(f'Unable to update record for {key} with response code {answer["code"]}. Retrying...')
-			second_attempt = API.patch_cw_configuration(_config_dict = value, _config_id = get_id, **cw_creds)
-			print(f'Second attempt has produced response code {second_attempt["code"]}\nResponse Body\n{"=" * 80}\n{second_attempt["body"]}')
+		print(f"Error {raw_response['code']} when checking if CI \"{key}\" exists in ConnectWise. Please check your API credentials.\n\t{json.loads(raw_response['body'].decode())['code']}: {json.loads(raw_response['body'].decode())['message']}")
