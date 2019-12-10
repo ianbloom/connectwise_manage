@@ -6,7 +6,7 @@ import pandas, json, sys, argparse
 #from io import StringIO
 from pprint import pprint
 
-debug = False
+debug = True
 query_size = 1000 #number of items to pull from the LM API, helps with pagination
 
 #########################
@@ -36,9 +36,6 @@ creds = {}
 creds.update(lm_creds)
 creds.update(cw_creds)
 
-###########################
-# GET ALL DEVICES FROM LM #
-###########################
 # Synchronize Types from LM to CW
 get_types = API.type_sync(_group_id = config['lm_group_id'], **creds)
 type_dict = get_types.items()
@@ -53,10 +50,12 @@ if get_companies["result"] == False:
 	print(f"Error synchronizing ConnectWise companies.\n{get_companies['items']}\n")
 	company_dict = {}
 
+###########################
+# GET ALL DEVICES FROM LM #
+###########################
 # Request Info
 resourcePath = '/device/devices'
 data         = ''
-
 last_item_found = False
 devices = []
 fields = 'id,name,displayName,hostGroupIds,customProperties,systemProperties,autoProperties,inheritedProperties'
@@ -97,13 +96,14 @@ for item in devices:
 	##############
 	# PROPERTIES #
 	##############
-	#extract device properties from LM data to use in CW fields
+	#extract device properties from LM data to use in CW fields, could probably use list comprehension here
 	all_properties = {}
 	for dict in item['systemProperties']:    all_properties[dict['name']] = dict['value']
 	for dict in item['systemProperties']:    all_properties[dict['name']] = dict['value']
 	for dict in item['autoProperties']:      all_properties[dict['name']] = dict['value']
 	for dict in item['customProperties']:    all_properties[dict['name']] = dict['value']
 	for dict in item['inheritedProperties']: all_properties[dict['name']] = dict['value']
+	#now all the properties are in a single dictionary with the property name as the key.
 
 	for key, value in all_properties.items():
 		if(key == 'system.ips'):     device_array[device_name]['ipAddress'] = value.split(',')[0]
@@ -114,7 +114,7 @@ for item in devices:
 		if('model' in key):          device_array[device_name]['modelNumber'] = value[:50]
 		if(key == 'location'):       device_array[device_name]['location'] = value
 		if(key == 'company'):        company = value
-		else:                        company = 'Unknown'
+		#else:                        company = 'Unknown' #setting a default value if company isn't found in the properties
 
 	########
 	# TYPE #
@@ -125,11 +125,11 @@ for item in devices:
 
 	# Initialize an array to hold all 'Device by Type' groups that this device is a member of
 	return_type_array = []
-	#check all the available LM types to see if any of them belong to this device
+	#check all the available LM types (the names of the sub-groups) to see if any of them belong to this device
 	for key, value in type_dict.items():
 		#ignore the collector type. if this type belongs to the host...
 		if key != 'Collectors' and value['lm_id'] in host_group_array: return_type_array.append(key)
-	# Every device must have a configuration type, so append 'Misc' if it's missing
+	# Every device must have a configuration type, so append 'Misc'. We're only using the first one in this list anyway.
 	return_type_array.append('Misc')
 
 	# Assign a type dict that contains the type ID and type Name to this device
@@ -141,20 +141,19 @@ for item in devices:
 	# COMPANY #
 	###########
 
-	# Add a company dict containing the company information to this device
+	# Add a company dict, containing the company information, to this device
 	if len(company_dict) > 0:
 		company_id = company_dict[company]['cw_id']
 		company_identifier = company_dict[company]['cw_identifier']
-	else:
+	else: #this might not work if company "Unknown" doesn't exist in CW
 		company_id = 0
 		company_identifier = 0
+		company = "Unknown"
 	device_array[device_name]['company'] = {'id': company_id, 'name': company, 'identifier': company_identifier}
 
 	if debug: print("=" * 80);print(item);pprint(device_array[device_name])
 if debug: pprint(device_array)
 else: print(device_array)
-
-quit()
 
 #############################
 # SEND ITEMS TO CONNECTWISE #
