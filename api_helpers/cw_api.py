@@ -26,7 +26,7 @@ def header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId):
 ###########
 # GETTERS #
 ###########
-
+#all of these functions need to be modified so that the body returned is a python list of objects, ready to use without further decode/json.loads needed.
 def get_cw_config_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId):
 	url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/configurations'
 	header_dict = header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId)
