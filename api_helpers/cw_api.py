@@ -2,8 +2,6 @@
 
 # from api_func import *
 import json
-import sys
-import argparse
 import base64
 import requests
 
@@ -29,156 +27,32 @@ def header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId):
 # GETTERS #
 ###########
 
-def get_cw_config_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId, **kwargs):
-	# Build request URL
+def get_cw_config_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId):
 	url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/configurations'
-
-	# Build header dictionary
 	header_dict = header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId)
-
-	# Data is empty for this GET
 	data = ''
-
 	response = requests.get(url, data=data, headers=header_dict)
+	return {'code':response.status_code, 'body':response.content}
 
-	return_dict = {'code':response.status_code,
-				   'body':response.content}
-
-	return return_dict
-
-def get_cw_company_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId, **kwargs):
-	# Build request URL
+def get_cw_company_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId):
 	url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/companies'
-
-	# Build header dictionary
 	header_dict = header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId)
-
-	# Data is empty for this GET
 	data = ''
-
 	response = requests.get(url, data=data, headers=header_dict)
+	return {'code':response.status_code, 'body':response.content}
 
-	return_dict = {'code':response.status_code,
-				   'body':response.content}
-
-	return return_dict
-
-def get_cw_company_by_name(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId, _name, **kwargs):
-	# Build request URL
-	url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/companies' + f'?conditions=name="{_name}"'
-
-	# Build header dictionary
-	header_dict = header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId)
-
-	# Data is empty for this GET
-	data = ''
-
-	response = requests.get(url, data=data, headers=header_dict)
-
-	return_dict = {'code':response.status_code,
-				   'body':response.content}
-
-	return return_dict
-
-def get_cw_type_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId, **kwargs):
-	# Build request URL
+def get_cw_type_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId):
 	url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/configurations/types'
-
-	# Build header dictionary
 	header_dict = header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId)
-
-	# Data is empty for this GET
 	data = ''
-
 	response = requests.get(url, data=data, headers=header_dict)
-
-	return_dict = {'code':response.status_code,
-				   'body':response.content}
-
-	return return_dict
-
-def get_cw_type_by_name(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId, _name, **kwargs):
-	# Build request URL
-	url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/configurations/types' + f'?conditions=name="{_name}"'
-
-	# Build header dictionary
-	header_dict = header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId)
-
-	# Data is empty for this GET
-	data = ''
-
-	response = requests.get(url, data=data, headers=header_dict)
-
-	return_dict = {'code':response.status_code,
-				   'body':response.content}
-
-	return return_dict
-
-def get_cw_config_by_name(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId, _name, **kwargs):
-	# Build request URL
-	url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/configurations' + f'?conditions=name="{_name}"'
-
-	# Build header dictionary
-	header_dict = header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId)
-
-	# Data is empty for this GET
-	data = ''
-
-	response = requests.get(url, data=data, headers=header_dict)
-
-	return_dict = {'code':response.status_code,
-				   'body':response.content}
-
-	return return_dict
+	return {'code':response.status_code, 'body':response.content}
 
 ###########
 # POSTERS #
 ###########
 
-def post_cw_type_by_name(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId, _name, **kwargs):
-	# Build request URL
-	url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/configurations/types'
-
-	# Build header dictionary
-	header_dict = header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId)
-
-	# Build data to POST
-	post_dict = {}
-	post_dict['name'] = _name
-
-	# Data is a json string
-	data = json.dumps(post_dict)
-
-	response = requests.post(url, data=data, headers=header_dict)
-
-	return_dict = {'code':response.status_code,
-				   'body':response.content}
-
-	return return_dict
-
-def post_cw_company_by_name(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId, _name, **kwargs):
-	# Build request URL
-	url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/companies'
-
-	# Build header dictionary
-	header_dict = header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId)
-
-	# Build data to POST
-	post_dict               = {}
-	post_dict['name']       = _name
-	post_dict['identifier'] = _name
-
-	# Data is a json string
-	data = json.dumps(post_dict)
-
-	response = requests.post(url, data=data, headers=header_dict)
-
-	return_dict = {'code':response.status_code,
-				   'body':response.content}
-
-	return return_dict
-
-def post_cw_configuration(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId, _config_dict, **kwargs):
+def post_cw_configuration(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId, _config_dict):
 	# Build request URL
 	url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/configurations'
 
@@ -199,7 +73,7 @@ def post_cw_configuration(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_ag
 # PATCHERS #
 ############
 
-def patch_cw_configuration(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId, _config_dict, _config_id, **kwargs):
+def patch_cw_configuration(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId, _config_dict, _config_id):
 	# Build request URL
 	url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/configurations/{_config_id}'
 
