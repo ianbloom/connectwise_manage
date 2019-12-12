@@ -35,18 +35,20 @@ def get_cw_config_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agent
 	return {'code':response.status_code, 'body':response.content}
 
 def get_cw_company_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId):
+	# Needs to return a list of company IDs from CW
 	url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/companies'
 	header_dict = header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId)
 	data = ''
 	response = requests.get(url, data=data, headers=header_dict)
-	return {'code':response.status_code, 'body':response.content}
+	return {'code':response.status_code, 'items':response.content}
 
 def get_cw_type_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId):
+	# Needs to return a list of company IDs from CW
 	url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/configurations/types'
 	header_dict = header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId)
 	data = ''
 	response = requests.get(url, data=data, headers=header_dict)
-	return {'code':response.status_code, 'body':response.content}
+	return {'code':response.status_code, 'items':response.content}
 
 ###########
 # POSTERS #
