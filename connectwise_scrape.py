@@ -32,7 +32,7 @@ raw_response = LMAPI.LM_GET(_resource_path = resourcePath, _query_params = query
 if raw_response['code'] == 200:
 	devices = raw_response['items']
 	device_array = {}
-	print(f"Fetched {len(devices)} devices from LogicMonitor.")
+	print(f"Fetched {len(devices)} devices from {lm_creds['_lm_account']}.logicmonitor.com.")
 	for item in devices:
 		device_name = item['displayName']
 		if debug: print(f"Gathering information for {device_name}")
@@ -81,30 +81,43 @@ else: print(f"Unable to fetch devices from LM: {raw_response['code']}\n\t{raw_re
 #############################
 # SEND ITEMS TO CONNECTWISE #
 #############################
-raw_response = CWAPI.get_cw_config_list(**cw_creds)
-if raw_response['code'] == 200 or raw_response['code'] == 201:
-	for key, value in device_array.items():
-		#find out what information CW has on this item
-		raw_response = CWAPI.get_cw_config_by_name(_name = key, **cw_creds)
-		if raw_response['code'] == 200 or raw_response['code'] == 201:
-			get_body = raw_response['body'].decode()
-			#if this item doesn't exist in CW, post it there.
-			if(get_body == '[]'):
-				answer = CWAPI.post_cw_configuration(_config_dict = value, **cw_creds)
-				if(answer['code'] == 200 or answer['code'] == 201): print(f'Record for {key} successfully created')
-				else:
-					print(f'Unable to create record for {key} with response code {answer["code"]}. Retrying...')
-					second_attempt = CWAPI.post_cw_configuration(_config_dict = value, **cw_creds)
-					print(f'Second attempt has produced response code {second_attempt["code"]}\nResponse Body\n{"=" * 80}\n{second_attempt["body"]}')
-			#else, the item already exists, patch it with new information
-			else:
-				get_id = json.loads(get_body)[0]['id']
-				patch_dict = CWAPI.patch_cw_configuration(_config_dict = value, _config_id = get_id, **cw_creds)
-				if(patch_dict['code'] == 200 or answer['code'] == 201): print(f'Record for {key} successfully updated')
-				else:
-					print(f'Update record for {key} with response code {answer["code"]}. Retrying...')
-					second_attempt = CWAPI.patch_cw_configuration(_config_dict = value, _config_id = get_id, **cw_creds)
-					print(f'Second attempt has produced response code {second_attempt["code"]}\nResponse Body\n{"=" * 80}\n{second_attempt["body"]}')
-
+#get current device list from CW
+cw_device_response = CWAPI.get_cw_config_list(**cw_creds)
+if cw_device_response['code'] in (200, 201):
+	cw_devices = cw_device_response['body'].decode()
 else:
-	print(f"Error {raw_response['code']} when fetching CI list from ConnectWise. Possible bad API credentials.\n\t{json.loads(raw_response['body'].decode())['code']}: {json.loads(raw_response['body'].decode())['message']}")
+	print(f"Problem obtaining current CIs from CW Manage: {cw_device_response['code']} {cw_device_response['body']}")
+	cw_devices = []
+
+#get current company list from CW
+cw_company_response = CWAPI.get_cw_company_list(**cw_creds)
+if cw_company_response['code'] in (200, 201):
+	cw_companies = cw_company_response['body'].decode()
+else:
+	print(f"Problem obtaining current company list from CW Manage: {cw_company_response['code']} {cw_company_response['body']}")
+	cw_companies = []
+
+#get current type list from CW
+cw_type_response = CWAPI.get_cw_type_list(**cw_creds)
+if cw_type_response['code'] in (200, 201):
+	cw_types = cw_type_response['body'].decode()
+else:
+	print(f"Problem obtaining current type list from CW Manage: {cw_type_response['code']} {cw_type_response['body']}")
+	cw_types = []
+
+for key, value in device_array.items():
+	#if this item doesn't exist in CW, post it there.
+	if(key not in cw_devices):
+		post_response = CWAPI.post_cw_configuration(_config_dict = value, **cw_creds)
+		if(post_response['code'] == 200 or post_response['code'] == 201):
+			print(f'Record for {key} successfully created')
+		else:
+			print(f'Unable to create record for {key} with response code {post_response["code"]}: {post_response["body"]}')
+	#else, the item already exists, patch it with new information
+	else:
+		get_id = cw_devices[key]['id']
+		patch_response = CWAPI.patch_cw_configuration(_config_dict = value, _config_id = get_id, **cw_creds)
+		if(patch_response['code'] == 200 or patch_response['code'] == 201):
+			print(f'Record for {key} successfully updated')
+		else:
+			print(f'Update record for {key} with response code {patch_response["code"]}: {patch_response["body"]}')
