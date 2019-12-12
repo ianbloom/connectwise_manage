@@ -110,9 +110,9 @@ else:
 #get current device list from CW
 cw_device_response = CWAPI.get_cw_config_list(**cw_creds)
 if cw_device_response['code'] in (200, 201):
-	cw_devices = cw_device_response['body'].decode()
+	cw_devices = cw_device_response['items'].decode()
 else:
-	error_message = json.loads(cw_device_response['body'].decode())
+	error_message = json.loads(cw_device_response['items'].decode())
 	log_msg(f"Problem obtaining current CIs from CW Manage: {cw_device_response['code']} {error_message['code']}: {error_message['message']}", "ERROR")
 	cw_devices = []
 

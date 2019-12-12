@@ -32,7 +32,7 @@ def get_cw_config_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agent
 	header_dict = header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId)
 	data = ''
 	response = requests.get(url, data=data, headers=header_dict)
-	return {'code':response.status_code, 'body':response.content}
+	return {'code':response.status_code, 'items':response.content}
 
 def get_cw_company_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId):
 	# Needs to return a list of company IDs from CW
