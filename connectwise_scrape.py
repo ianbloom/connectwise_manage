@@ -38,21 +38,19 @@ cw_creds = {"_cw_api_id": config['cw_id'], "_cw_api_key": config['cw_key'], "_cw
 ###############################
 # FETCH CURRENT ITEMS FROM CW #
 ###############################
-log_msg(f"Fetching current company list from CW...", end="")
+log_msg(f"Fetching current device list from CW...", end="")
 cw_device_response = CWAPI.get_cw_config_list(**cw_creds)
 if cw_device_response['code'] in (200, 201):
-	cw_devices = cw_device_response['items'].decode()
+	cw_devices = cw_device_response['items']
 	if info: print("Done.")
 else:
 	if info: print("Failed.")
 	error_message = json.loads(cw_device_response['items'].decode())
 	log_msg(f"Problem obtaining current CIs from CW Manage: {cw_device_response['code']} {error_message['code']}: {error_message['message']}", "ERROR")
-	# cw_devices = {}
+	cw_devices = {}
 	# this dict is to inject some fake data for testing. The result of get_cw_config_list should look like this:
-	cw_devices = {
-		"Octoprint": 4,
-		"pitunes2": 7
-	}
+	# cw_devices = {"Octoprint": 4,"pitunes2": 7}
+log_msg(f"Fetched CI list from CW: {cw_devices}", "DEBUG")
 
 log_msg(f"Fetching current company list from CW...", end="")
 cw_company_response = CWAPI.get_cw_company_list(**cw_creds)
@@ -63,13 +61,10 @@ else:
 	if info: print("Failed.")
 	error_message = json.loads(cw_company_response['items'].decode())
 	log_msg(f"Problem obtaining current company list from CW Manage: {cw_company_response['code']} {error_message['code']}: {error_message['message']}", "ERROR")
-	# cw_companies = {}
+	cw_companies = {}
 	# this dict is to inject some fake data for testing. The result of cw_company_response should look like this:
-	cw_companies = {
-		"Acme": {"id":1, "identifier": "FEEDFACE"},
-		"NetQoS": {"id": 2, "identifier": "DEFACED"}
-	}
-log_msg(f"cw_companies = {cw_companies}")
+	# cw_companies = {"Acme": {"id":1, "identifier": 0xFEEDFACE},"NetQoS": {"id": 2, "identifier": 0xDEFACED}}
+log_msg(f"Fetched company list from CW: {cw_companies}", "DEBUG")
 
 log_msg(f"Fetching current type list from CW...", end="")
 cw_type_response = CWAPI.get_cw_type_list(**cw_creds)
@@ -80,14 +75,10 @@ else:
 	if info: print("Failed.")
 	error_message = json.loads(cw_type_response['items'].decode())
 	log_msg(f"Problem obtaining current type list from CW Manage: {cw_type_response['code']} {error_message['code']}: {error_message['message']}", "ERROR")
-	# cw_types = {}
+	cw_types = {}
 	# this dict is to inject some fake data for testing. The result of cw_type_response should look like this:
-	cw_types = {
-		"Hyper-V": 1,
-		"Server": 2,
-		"Misc": 3,
-		"Network": 4
-	}
+	# cw_types = {"Hyper-V": 1,"Server": 2,"Misc": 3,"Network": 4}
+log_msg(f"Fetched type list from CW: {cw_types}", "DEBUG")
 
 ###########################
 # GET ALL DEVICES FROM LM #
@@ -126,14 +117,14 @@ if raw_response['code'] in (200, 201):
 		log_msg(f"Extracting properties...", "DEBUG")
 		device_array[device_name]['ipAddress'] = all_properties['system.ips'].split(",")[0] if 'system.ips' in all_properties.keys() else ""
 		device_array[device_name]['osType'] = all_properties['system.sysinfo'][:250] if 'system.sysinfo' in all_properties.keys() else ""
-		device_array[device_name]['uptime'] = all_properties['system.uptime'] if 'system.uptime' in all_properties.keys() else ""
+		# device_array[device_name]['uptime'] = all_properties['system.uptime'] if 'system.uptime' in all_properties.keys() else ""
 		device_array[device_name]['modelNumber'] = all_properties['system.model'][:50] if 'system.model' in all_properties.keys() else ""
 		for k,v in all_properties.items():
 			if 'serial' in k:
 				device_array[device_name]['serialNumber'] = v
 			if 'model' in k:
 				device_array[device_name]['modelNumber'] = v[:50]
-		device_array[device_name]['location'] = all_properties['location'] if 'location' in all_properties.keys() else ""
+		# device_array[device_name]['location'] = all_properties['location'] if 'location' in all_properties.keys() else ""
 
 		log_msg(f"Extracting company information, building company dictionary for this one device.", "DEBUG")
 		company = all_properties['cw_company.name'] if 'cw_company.name' in all_properties.keys() else 'Unknown_Company'
