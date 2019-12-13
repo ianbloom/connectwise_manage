@@ -10,17 +10,12 @@ import requests
 ###########
 
 def header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId):
-	# Initialize header_dict and populate with header values
 	header_dict = {}
 	header_dict['Content-Type'] = 'application/json'
-	header_dict['clientID'] = _cw_agentId #not sure if this header name is correct
-
-	# Build and encode API token for header
+	header_dict['clientId'] = _cw_agentId
 	token = f'{_cw_company}+{_cw_api_id}:{_cw_api_key}'
-	# For whatever reason, the string must first be encoded as a bytes-type object, then 64 encoded, then decode
 	encoded_token = (base64.b64encode(token.encode())).decode()
 	header_dict['Authorization'] = f'Basic {encoded_token}'
-
 	return header_dict
 
 ###########
