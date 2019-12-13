@@ -58,6 +58,7 @@ def get_cw_type_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId
 def post_cw_configuration(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId, _config_dict):
 	url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/configurations'
 	data = json.dumps(_config_dict)
+	#something's incomplete in the _config_dict, not sure what.
 	print(data)
 	response = requests.post(url, data=data, headers=header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId))
 	return {'code':response.status_code, 'body':response.content}
