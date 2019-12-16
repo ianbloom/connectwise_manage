@@ -62,8 +62,6 @@ else:
 	error_message = json.loads(cw_company_response['items'].decode())
 	log_msg(f"Problem obtaining current company list from CW Manage: {cw_company_response['code']} {error_message['code']}: {error_message['message']}", "ERROR")
 	cw_companies = {}
-	# this dict is to inject some fake data for testing. The result of cw_company_response should look like this:
-	# cw_companies = {"Acme": {"id":1, "identifier": 0xFEEDFACE},"NetQoS": {"id": 2, "identifier": 0xDEFACED}}
 log_msg(f"Fetched company list from CW: {cw_companies}", "DEBUG")
 
 log_msg(f"Fetching current type list from CW...", end="")
@@ -76,9 +74,19 @@ else:
 	error_message = json.loads(cw_type_response['items'].decode())
 	log_msg(f"Problem obtaining current type list from CW Manage: {cw_type_response['code']} {error_message['code']}: {error_message['message']}", "ERROR")
 	cw_types = {}
-	# this dict is to inject some fake data for testing. The result of cw_type_response should look like this:
-	# cw_types = {"Hyper-V": 1,"Server": 2,"Misc": 3,"Network": 4}
 log_msg(f"Fetched type list from CW: {cw_types}", "DEBUG")
+
+log_msg(f"Fetching current managementItSolutions from CW...", end="")
+cw_solution_response = CWAPI.get_cw_solution_list(**cw_creds)
+if cw_solution_response['code'] in (200, 201):
+	cw_solutions = cw_solution_response['items']
+	if info: print("Done.")
+else:
+	if info: print("Failed.")
+	error_message = json.loads(cw_solution_response['items'].decode())
+	log_msg(f"Problem obtaining the current solution list from CW Manage: {cw_solution_response['code']} {error_message['code']}: {error_message['message']}", "ERROR")
+	cw_solutions = []
+log_msg(f"Fetched solution list from CW: {cw_solutions}")
 
 ###########################
 # GET ALL DEVICES FROM LM #
@@ -94,6 +102,17 @@ if raw_response['code'] in (200, 201):
 		log_msg(f"Gathering information for {device_name}...", end="")
 		device_array[device_name] = {}
 		device_array[device_name]['name'] = device_name
+		if len(cw_solutions) > 0:
+			device_array[device_name]['managedInformation'] = cw_solutions[0]
+		else:
+			device_array[device_name]['managedInformation'] = {
+				'id': 0,
+				'name': 'Unknown_Solution',
+				'managementItSolutionType': 'Custom',
+				'managementSolutionName': 'UnknownSolution',
+				'globalLoginFlag': True,
+				'noDisplayFlag': False,
+			}
 		log_msg(f"Processing data. (Extracting device properties from LM data to use in CW fields)", "DEBUG")
 		all_properties = {}
 		for dict in item['systemProperties']:
@@ -117,7 +136,6 @@ if raw_response['code'] in (200, 201):
 		log_msg(f"Extracting properties...", "DEBUG")
 		device_array[device_name]['ipAddress'] = all_properties['system.ips'].split(",")[0] if 'system.ips' in all_properties.keys() else ""
 		device_array[device_name]['osType'] = all_properties['system.sysinfo'][:250] if 'system.sysinfo' in all_properties.keys() else ""
-		# device_array[device_name]['uptime'] = all_properties['system.uptime'] if 'system.uptime' in all_properties.keys() else ""
 		device_array[device_name]['modelNumber'] = all_properties['system.model'][:50] if 'system.model' in all_properties.keys() else ""
 		for k,v in all_properties.items():
 			if 'serial' in k:
@@ -125,6 +143,7 @@ if raw_response['code'] in (200, 201):
 			if 'model' in k:
 				device_array[device_name]['modelNumber'] = v[:50]
 		# device_array[device_name]['location'] = all_properties['location'] if 'location' in all_properties.keys() else ""
+		device_array[device_name]['status'] = {"id": 1, "name": "Active"}
 
 		log_msg(f"Extracting company information, building company dictionary for this one device.", "DEBUG")
 		company = all_properties['cw_company.name'] if 'cw_company.name' in all_properties.keys() else 'Unknown_Company'
@@ -165,13 +184,16 @@ else:
 # SEND ITEMS TO CONNECTWISE #
 #############################
 for key, value in device_array.items():
-	if value['company']['name'] not in cw_companies:
-		log_msg(f"\"{key}\" LM company tag ({value['company']['name']}) does not exist in CW. {key} not synchronized to CW.", "ERROR")
+	# if value['company']['name'] not in cw_companies:
+	# 	log_msg(f"\"{key}\" LM company tag ({value['company']['name']}) does not exist in CW. {key} not synchronized to CW.", "ERROR")
+	# 	continue
+	# if value['type']['name'] not in cw_types:
+	# 	log_msg(f"\"{key}\" LM type tag ({value['type']['name']}) does not exist in CW. {key} not synchronized to CW.", "ERROR")
+	# 	continue
+	if value['managedInformation']['id'] == 0:
+		log_msg(f"\"{key}\" solution tag ({value['managedInformation']['name']}) does not exist in CW. {key} not synchronized to CW.", "ERROR")
 		continue
-	if value['type']['name'] not in cw_types:
-		log_msg(f"\"{key}\" LM type tag ({value['type']['name']}) does not exist in CW. {key} not synchronized to CW.", "ERROR")
-		continue
-	log_msg(f"\"{key}\" passed validation checks.")
+	# log_msg(f"\"{key}\" passed validation checks.")
 
 	if(key in cw_devices.keys()):
 		log_msg(f"\"{key}\" exists in CW Manage, updating fields...", end="")
@@ -183,7 +205,7 @@ for key, value in device_array.items():
 			if info: print(f'Failed.')
 			log_msg(f'Unable to update record for \"{key}\" with response code {patch_response["code"]}: {json.loads(patch_response["body"].decode())["code"]}: {json.loads(patch_response["body"].decode())["message"]}', "ERROR")
 	else:
-		log_msg(f"\"{key}\" does not exist in CW Manage, creating CI...", end="")
+		log_msg(f"\"{key}\" DOES NOT EXIST in CW Manage, creating CI...", end="")
 		post_response = CWAPI.post_cw_configuration(_config_dict = value, **cw_creds)
 		if(post_response['code'] == 200 or post_response['code'] == 201):
 			if info: print(f'Done.')
