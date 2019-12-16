@@ -52,6 +52,18 @@ def get_cw_type_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId
 		types = response.content
 	return {'code':response.status_code, 'items':types}
 
+def get_cw_solution_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId):
+	url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/managementItSolutions'
+	response = requests.get(url, data="", headers=header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId))
+	solutions = {}
+	if response.status_code in (200, 201):
+		# for solution in json.loads(response.content):
+		# 	solutions[solution['name']] = solution['id']
+		solutions = json.loads(response.content)
+	else:
+		solutions = response.content
+	return {'code':response.status_code, 'items':solutions}
+
 ###########
 # POSTERS #
 ###########
@@ -59,7 +71,7 @@ def post_cw_configuration(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_ag
 	url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/configurations'
 	data = json.dumps(_config_dict)
 	#something's incomplete in the _config_dict, not sure what.
-	print(data)
+	print(data, end="...")
 	response = requests.post(url, data=data, headers=header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId))
 	return {'code':response.status_code, 'body':response.content}
 
