@@ -2,17 +2,19 @@
 import json
 import base64
 import requests
+from pprint import pprint
 
 ###########
 # HELPERS #
 ###########
-def header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId):
+def header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId, addnlheaderitems = {}):
 	header_dict = {}
 	header_dict['Content-Type'] = 'application/json'
 	header_dict['clientId'] = _cw_agentId
 	token = f'{_cw_company}+{_cw_api_id}:{_cw_api_key}'
 	encoded_token = (base64.b64encode(token.encode())).decode()
 	header_dict['Authorization'] = f'Basic {encoded_token}'
+	header_dict.update(addnlheaderitems)
 	return header_dict
 
 ###########
@@ -23,9 +25,10 @@ def get_cw_config_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agent
 	response = requests.get(url, data="", headers=header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId))
 	devices = {}
 	if response.status_code in (200, 201):
-		for device in json.loads(response.content): devices[device['name']] = device['id']
+		for device in json.loads(response.content):
+			devices[device['name']] = device['id']
 	else:
-		devices = response.content
+		devices = response
 	return {'code':response.status_code, 'items':devices}
 
 def get_cw_company_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId):
@@ -52,18 +55,6 @@ def get_cw_type_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId
 		types = response.content
 	return {'code':response.status_code, 'items':types}
 
-def get_cw_solution_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId):
-	url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/managementItSolutions'
-	response = requests.get(url, data="", headers=header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId))
-	solutions = {}
-	if response.status_code in (200, 201):
-		# for solution in json.loads(response.content):
-		# 	solutions[solution['name']] = solution['id']
-		solutions = json.loads(response.content)
-	else:
-		solutions = response.content
-	return {'code':response.status_code, 'items':solutions}
-
 ###########
 # POSTERS #
 ###########
@@ -71,9 +62,8 @@ def post_cw_configuration(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_ag
 	url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/configurations'
 	data = json.dumps(_config_dict)
 	#something's incomplete in the _config_dict, not sure what.
-	print(data, end="...")
 	response = requests.post(url, data=data, headers=header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId))
-	return {'code':response.status_code, 'body':response.content}
+	return {'code':response.status_code, 'body':json.loads(response.content.decode())}
 
 ############
 # PATCHERS #
