@@ -35,6 +35,7 @@ with open(args.file) as file:
 lm_creds = {"_lm_id": config['lm_id'], "_lm_key": config['lm_key'], "_lm_account": config['lm_company']}
 cw_creds = {"_cw_api_id": config['cw_id'], "_cw_api_key": config['cw_key'], "_cw_company": config['cw_company'], "_cw_site": config['cw_site'], "_cw_agentId": config['cw_agentId']}
 
+log_msg("START SCRIPT EXECUTION")
 ###############################
 # FETCH CURRENT ITEMS FROM CW #
 ###############################
@@ -42,24 +43,24 @@ log_msg(f"Fetching current device list from CW...", end="")
 cw_device_response = CWAPI.get_cw_config_list(**cw_creds)
 if cw_device_response['code'] in (200, 201):
 	cw_devices = cw_device_response['items']
-	if info: print(f"Done fetching {len(cw_devices)} devices.")
+	if info: print(f"Done fetching {len(cw_devices)} configurations.")
 else:
 	if info: print("Failed.")
 	log_msg(f"Problem obtaining current CIs from CW Manage: {cw_device_response['code']}: {cw_device_response['items']}", "ERROR")
 	cw_devices = {}
-log_msg(f"Fetched CI list from CW: {cw_devices}", "INFO")
+log_msg(f"Fetched CI list from CW: {cw_devices.keys()}", "DEBUG")
 
 log_msg(f"Fetching current company list from CW...", end="")
 cw_company_response = CWAPI.get_cw_company_list(**cw_creds)
 if cw_company_response['code'] in (200, 201):
 	cw_companies = cw_company_response['items']
-	if info: print(f"Done fetching {len(cw_companies)} companies.")
+	if info: print(f"Done fetching {len(cw_companies.keys())} companies.")
 else:
 	if info: print("Failed.")
 	error_message = json.loads(cw_company_response['items'].decode())
 	log_msg(f"Problem obtaining current company list from CW Manage: {cw_company_response['code']} {error_message['code']}: {error_message['message']}", "ERROR")
 	cw_companies = {}
-log_msg(f"Fetched company list from CW: {cw_companies}", "DEBUG")
+log_msg(f"Fetched company list from CW: {cw_companies.keys()}", "DEBUG")
 
 log_msg(f"Fetching current type list from CW...", end="")
 cw_type_response = CWAPI.get_cw_type_list(**cw_creds)
@@ -70,7 +71,7 @@ else:
 	if info: print("Failed.")
 	log_msg(f"Problem obtaining current type list from CW Manage: {cw_type_response['code']}: {cw_type_response['items']}", "ERROR")
 	cw_types = {}
-log_msg(f"Fetched type list from CW: {cw_types}", "DEBUG")
+log_msg(f"Fetched type list from CW: {cw_types.keys()}", "DEBUG")
 
 ###########################
 # GET ALL DEVICES FROM LM #
@@ -83,10 +84,9 @@ if raw_response['code'] in (200, 201):
 	log_msg(f"Fetched {len(devices)} devices from {lm_creds['_lm_account']}.logicmonitor.com.")
 	for item in devices:
 		device_name = item['displayName']
-		log_msg(f"Gathering information for {device_name}...", end="")
+		log_msg(f"Gathering information for {device_name}...", "DEBUG")
 		device_array[device_name] = {}
 		device_array[device_name]['name'] = device_name
-
 		log_msg(f"Processing data. (Extracting device properties from LM data to use in CW fields)", "DEBUG")
 		all_properties = {}
 		for dict in item['systemProperties']:
@@ -114,23 +114,26 @@ if raw_response['code'] in (200, 201):
 				device_array[device_name]['serialNumber'] = v
 			if 'model' in k:
 				device_array[device_name]['modelNumber'] = v[:50]
-		# device_array[device_name]['location'] = all_properties['location'] if 'location' in all_properties.keys() else ""
-		# device_array[device_name]['status'] = {"id": 1, "name": "Active"}
 
-		log_msg(f"Extracting company information, building company dictionary for this one device.", "DEBUG")
-		company = all_properties['cw_company.name'] if 'cw_company.name' in all_properties.keys() else 'Unknown_Company'
-		log_msg(f"Company tag found for {device_name}: {company}", "DEBUG")
-		if company in cw_companies.keys():
-			log_msg(f"{company} was found in cw_companies. Injecting ids", "DEBUG")
-			company_id = cw_companies[company]['id']
-			company_identifier = cw_companies[company]['identifier']
+		log_msg(f"Extracting company information.", "DEBUG")
+		if 'connectwise_training.companyid' in all_properties.keys():
+			company_id = all_properties['connectwise_training.companyid']
+			log_msg(f"Company tag found for {device_name}: {company_id}", "DEBUG")
+			if company_id in cw_companies.keys():
+				log_msg(f"{company_id} was found in cw_companies. Injecting metadata", "DEBUG")
+				company_name = cw_companies[company_id]['name']
+				company_identifier = cw_companies[company_id]['identifier']
+			else:
+				log_msg(f"{company} was not found in cw_companies. Injecting defaults.", "DEBUG")
+				company_name = "Unknown_Company"
+				company_identifier = 0
 		else:
-			log_msg(f"{company} was not found in cw_companies. Injecting defaults.", "DEBUG")
+			company_name = 'Unknown_Company'
 			company_id = 0
 			company_identifier = 0
-		device_array[device_name]['company'] = {'id': company_id, 'name': company, 'identifier': company_identifier}
+		device_array[device_name]['company'] = {'id': company_id, 'name': company_name, 'identifier': company_identifier}
 
-		log_msg(f"Extracting type information, building type dictionary for this one device", "DEBUG")
+		log_msg(f"Extracting type information.", "DEBUG")
 		type = all_properties['cw_type'] if 'cw_type' in all_properties.keys() else "Unknown_Type"
 		log_msg(f"Type tag found for {device_name}: {type}", "DEBUG")
 		if type in cw_types.keys():
@@ -141,18 +144,16 @@ if raw_response['code'] in (200, 201):
 			type_id = 0
 		device_array[device_name]['type'] = {'id': type_id, 'name': type}
 
-		log_msg("This is a server, so we need to answer some extra questions.", "DEBUG")
-		if type == "Server":
-			device_array[device_name]["questions"] = [
-				{"questionId": 23, "answer": "File & Print Server"},
-				{"questionId": 32, "answer": "Windows 2003 Standard Server "}
-			]
-
+		# log_msg("This is a server, so we need to answer some extra questions.", "DEBUG")
+		# if type == "Server":
+		# 	device_array[device_name]["questions"] = [
+		# 		{"questionId": 23, "answer": "File & Print Server"},
+		# 		{"questionId": 32, "answer": "Windows 2003 Standard Server"}
+		# 	]
 
 		log_msg(f"Done extracting properties", "DEBUG")
 		log_msg(f"Raw device details: {item}", "DEBUG")
 		log_msg(f"Extracted properties: {device_array[device_name]}", "DEBUG")
-		if info: print(f"Done")
 	log_msg(f"Data ready to be sent to CW.")
 	log_msg(f"All items' extracted properties:", "DEBUG")
 	for k,v in device_array.items():
@@ -163,29 +164,71 @@ else:
 #############################
 # SEND ITEMS TO CONNECTWISE #
 #############################
+bad_type_devices = {}
+bad_company_devices = {}
+new_devices = {}
+new_failed = {}
+updated_devices = {}
+update_failed = {}
+
 for key, value in device_array.items():
-	if value['company']['name'] not in cw_companies:
+	if value['company']['id'] not in cw_companies.keys():
 		log_msg(f"\"{key}\" LM company tag ({value['company']['name']}) does not exist in CW. \"{key}\" not synchronized to CW.", "ERROR")
+		bad_company_devices[key] = value['company']['name']
 		continue
 	if value['type']['name'] not in cw_types:
 		log_msg(f"\"{key}\" LM type tag ({value['type']['name']}) does not exist in CW. \"{key}\" not synchronized to CW.", "ERROR")
+		bad_type_devices[key] = value['type']['name']
 		continue
+	log_msg(f"\"{key}\" passed validation checks. Ready to post/patch {value}", "DEBUG")
 	log_msg(f"\"{key}\" passed validation checks.")
-
 	if(key in cw_devices.keys()):
 		log_msg(f"\"{key}\" exists in CW Manage, updating fields...", end="")
-		get_id = cw_devices[key]
-		patch_response = CWAPI.patch_cw_configuration(_config_dict = value, _config_id = get_id, **cw_creds)
-		if(patch_response['code'] == 200 or patch_response['code'] == 201):
-			if info: print(f'Done.')
+		type_from_cw = cw_devices[key][1]['name']
+		type_from_lm = value['type']['name']
+		if type_from_cw == type_from_lm:
+			get_id = cw_devices[key][0]
+			patch_response = CWAPI.patch_cw_configuration(_config_dict = value, _config_id = get_id, **cw_creds)
+			if(patch_response['code'] == 200 or patch_response['code'] == 201):
+				if info: print(f'Done.')
+				updated_devices[key] = value
+			else:
+				if info: print(f'Failed.')
+				log_msg(f'Unable to update record for \"{key}\" with response code {patch_response["code"]}: {patch_response["body"]}. Request payload {value}', "ERROR")
+				update_failed[key] = value
 		else:
-			if info: print(f'Failed.')
-			log_msg(f'Unable to update record for \"{key}\" with response code {patch_response["code"]}: {patch_response["body"]}', "ERROR")
+			print(f'Failed.')
+			log_msg(f"Unable to update record for \"{key}\" because the type from LM ({type_from_lm}) doesn't match the type already set in CW ({type_from_cw}).", "ERROR")
+			update_failed[key] = value
 	else:
 		log_msg(f"\"{key}\" does not exist in CW Manage, creating CI...", end="")
 		post_response = CWAPI.post_cw_configuration(_config_dict = value, **cw_creds)
 		if(post_response['code'] == 200 or post_response['code'] == 201):
 			if info: print(f'Done.')
+			new_devices[key] = value
 		else:
 			if info: print(f'Failed.')
-			log_msg(f'Unable to create record for \"{key}\" with response code {post_response["code"]}: {post_response["body"]}', "ERROR")
+			log_msg(f'Unable to create record for \"{key}\" with response code {post_response["code"]}: {post_response["body"]}. Request payload {value}', "ERROR")
+			new_failed[key] = value
+
+log_msg(f"{len(new_devices)} new devices added to CW.")
+log_msg(f"New devices added: {new_devices}", "DEBUG")
+
+log_msg(f"{len(new_failed)} new devices failed to add to CW.")
+log_msg(f"New devices that failed to add: {new_failed}", "DEBUG")
+
+log_msg(f"{len(updated_devices)} existing devices updated in CW.")
+log_msg(f"Existing devices updated: {updated_devices}", "DEBUG")
+
+log_msg(f"{len(update_failed)} existing devices failed to update in CW.")
+log_msg(f"Existing devices that failed to update: {update_failed}", "DEBUG")
+
+log_msg(f"{len(bad_company_devices)} devices were not synchronized to CW due to a company mismatch")
+log_msg(f"Devices not synchronized due to bad company: {bad_company_devices.items()}", "DEBUG")
+log_msg(f"Valid companies: {cw_companies.keys()}", "DEBUG")
+
+log_msg(f"{len(bad_type_devices)} devices were not synchronized to CW due to a type mismatch")
+log_msg(f"Devices not synchronized due to bad type: {bad_type_devices.items()}", "DEBUG")
+log_msg(f"Valid companies: {cw_types.keys()}", "DEBUG")
+
+log_msg("END SCRIPT EXECUTION")
