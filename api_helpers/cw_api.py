@@ -21,38 +21,72 @@ def header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId, addnlheaderi
 # GETTERS #
 ###########
 def get_cw_config_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId):
-	url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/configurations'
-	response = requests.get(url, data="", headers=header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId))
+	query_size = 1000
+	last_found = False
 	devices = {}
-	if response.status_code in (200, 201):
-		for device in json.loads(response.content):
-			devices[device['name']] = device['id']
-	else:
-		devices = response
+	page = 1
+	while not last_found:
+		url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/configurations?pagesize={query_size}&page={page}'
+		response = requests.get(url, data="", headers=header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId))
+		this_call_devices = {}
+		if response.status_code in (200, 201):
+			for device in json.loads(response.content):
+				this_call_devices[device['name']] = [device['id'], device['type']]
+			links = {}
+			if len(response.headers['Link']) > 0:
+				for link in response.headers['Link'].split(","):
+					links[link.split(";")[1]] = link.split(";")[0]
+			last_found = ' rel="last"' not in links.keys()
+			devices.update(this_call_devices)
+			page += 1
+		else:
+			devices = response
 	return {'code':response.status_code, 'items':devices}
 
 def get_cw_company_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId):
-	url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/companies'
-	response = requests.get(url, data="", headers=header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId))
+	query_size = 1000
+	last_found = False
 	companies = {}
-	if response.status_code in (200, 201):
-		for company in json.loads(response.content):
-			companies[company['name']] = {
-				'id': company['id'],
-				'identifier': company['identifier']
-			}
-	else:
-		companies = response.content
+	page = 1
+	while not last_found:
+		url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/companies?pagesize={query_size}&page={page}'
+		response = requests.get(url, data="", headers=header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId))
+		this_call_companies = {}
+		if response.status_code in (200, 201):
+			for company in json.loads(response.content):
+				this_call_companies[str(company['id'])] = {'id': company['id'],'name': company['name'],'identifier': company['identifier']}
+			links = {}
+			if len(response.headers['Link']) > 0:
+				for link in response.headers['Link'].split(","):
+					links[link.split(";")[1]] = link.split(";")[0]
+			last_found = ' rel="last"' not in links.keys()
+			companies.update(this_call_companies)
+			page += 1
+		else:
+			companies = response.content
 	return {'code':response.status_code, 'items':companies}
 
 def get_cw_type_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId):
-	url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/configurations/types'
-	response = requests.get(url, data="", headers=header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId))
+	query_size = 1000
+	last_found = False
 	types = {}
-	if response.status_code in (200, 201):
-		for type in json.loads(response.content): types[type['name']] = type['id']
-	else:
-		types = response.content
+	page = 1
+	while not last_found:
+		url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/configurations/types?pagesize={query_size}&page={page}'
+		response = requests.get(url, data="", headers=header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId))
+		this_call_types = {}
+		if response.status_code in (200, 201):
+			for type in json.loads(response.content):
+				types[type['name']] = type['id']
+			links = {}
+			if len(response.headers['Link']) > 0:
+				for link in response.headers['Link'].split(","):
+					links[link.split(";")[1]] = link.split(";")[0]
+			last_found = ' rel="last"' not in links.keys()
+			types.update(this_call_types)
+			page += 1
+		else:
+			types = response.content
 	return {'code':response.status_code, 'items':types}
 
 ###########
