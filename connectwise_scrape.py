@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/python3
 
 import api_helpers.cw_api as CWAPI
 import api_helpers.lm_api as LMAPI
