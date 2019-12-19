@@ -3,7 +3,7 @@
 import api_helpers.cw_api as CWAPI
 import api_helpers.lm_api as LMAPI
 
-import json, argparse
+import json, argparse, re
 from pprint import pprint, pformat
 from datetime import datetime
 
@@ -39,6 +39,17 @@ log_msg("START SCRIPT EXECUTION")
 ###############################
 # FETCH CURRENT ITEMS FROM CW #
 ###############################
+log_msg(f"Fetching current manufacturer list from CW...", end="")
+cw_manufacturer_response = CWAPI.get_cw_manufacturer_list(**cw_creds)
+if cw_manufacturer_response['code'] in (200, 201):
+	cw_manufacturers = cw_manufacturer_response['items']
+	if info: print(f"Done fetching {len(cw_manufacturers)} manufacturers.")
+else:
+	if info: print("Failed.")
+	log_msg(f"Problem obtaining current manufacturers from CW Manage: {cw_manufacturer_response['code']}: {cw_manufacturer_response['items']}", "ERROR")
+	cw_manufacturers = {}
+log_msg(f"Fetched manufacturer list from CW: {cw_manufacturers.keys()}", "DEBUG")
+
 log_msg(f"Fetching current device list from CW...", end="")
 cw_device_response = CWAPI.get_cw_config_list(**cw_creds)
 if cw_device_response['code'] in (200, 201):
@@ -83,10 +94,6 @@ if raw_response['code'] in (200, 201):
 	device_array = {}
 	log_msg(f"Fetched {len(devices)} devices from {lm_creds['_lm_account']}.logicmonitor.com.")
 	for item in devices:
-		device_name = item['displayName']
-		log_msg(f"Gathering information for {device_name}...", "DEBUG")
-		device_array[device_name] = {}
-		device_array[device_name]['name'] = device_name
 		log_msg(f"Processing data. (Extracting device properties from LM data to use in CW fields)", "DEBUG")
 		all_properties = {}
 		for dict in item['systemProperties']:
@@ -98,23 +105,52 @@ if raw_response['code'] in (200, 201):
 		for dict in item['inheritedProperties']:
 			all_properties[dict['name']] = dict['value']
 		log_msg(f"Now all the properties are in a single dictionary with the property name as the key.", "DEBUG")
+		# log_msg(f"ID: {item['id']} Name: {item['name']}", "DEBUG")
+		# log_msg(f"  displayName: {item['displayName']}", "DEBUG")
+		# log_msg(f"  hostGroupIds: {item['hostGroupIds']}", "DEBUG")
+		# for k,v in all_properties.items(): log_msg(f"  {k}: {v}", "DEBUG")
 
-		log_msg(f"ID: {item['id']} Name: {item['name']}", "DEBUG")
-		log_msg(f"  displayName: {item['displayName']}", "DEBUG")
-		log_msg(f"  hostGroupIds: {item['hostGroupIds']}", "DEBUG")
+		device_name = item['displayName']
+		log_msg(f"Gathering information for {device_name}...", "DEBUG")
+		device_array[device_name] = {}
+
+		#name
+		device_array[device_name]['name'] = device_name
+
+		#ipAddress
+		if 'system.ips' in all_properties.keys():
+			device_array[device_name]['ipAddress'] = all_properties['system.ips'].split(",")[0]
+
+		#osType
+		if 'system.sysinfo' in all_properties.keys():
+			device_array[device_name]['osType'] = all_properties['system.sysinfo'][:250]
+
+		#manufacturer
+		if 'system.sysinfo' in all_properties.keys():
+			lm_manufacturer = all_properties['system.sysinfo'].split(" ",1)[0]
+			if lm_manufacturer in cw_manufacturers.keys():
+				device_array[device_name]['manufacturer'] = {"id": cw_manufacturers[lm_manufacturer]['id'], "name": cw_manufacturers[lm_manufacturer]['name']}
+
+		#mac Address
+		if 'auto.network.mac_address' in all_properties.keys():
+			device_array[device_name]['macAddress'] = all_properties['auto.network.mac_address']
+
+		#model
+		for mp in ['model','system.model','auto.endpoint.model','auto.entphysical.modelname','auto.cisco.chassis_model']:
+			if mp in all_properties.keys():
+				device_array[device_name]['modelNumber'] = all_properties[mp][:50]
+				log_msg(f"Found model information in {mp} ({all_properties[mp]}). Overwriting any previously discovered model information.", "DEBUG")
 		for k,v in all_properties.items():
-			log_msg(f"  {k}: {v}", "DEBUG")
+			if re.search("auto\.netapp\..*\.model", k):
+				log_msg(f"Found model information in {k} ({v}). Overwriting any previously discovered model information.", "DEBUG")
+				device_array[device_name]['modelNumber'] = v[:50]
 
-		log_msg(f"Extracting properties...", "DEBUG")
-		device_array[device_name]['ipAddress'] = all_properties['system.ips'].split(",")[0] if 'system.ips' in all_properties.keys() else ""
-		device_array[device_name]['osType'] = all_properties['system.sysinfo'][:250] if 'system.sysinfo' in all_properties.keys() else ""
-		device_array[device_name]['modelNumber'] = all_properties['system.model'][:50] if 'system.model' in all_properties.keys() else ""
+		#serial
 		for k,v in all_properties.items():
 			if 'serial' in k:
 				device_array[device_name]['serialNumber'] = v
-			if 'model' in k:
-				device_array[device_name]['modelNumber'] = v[:50]
 
+		#company
 		log_msg(f"Extracting company information.", "DEBUG")
 		if 'connectwise_training.companyid' in all_properties.keys():
 			company_id = all_properties['connectwise_training.companyid']
@@ -133,6 +169,7 @@ if raw_response['code'] in (200, 201):
 			company_identifier = 0
 		device_array[device_name]['company'] = {'id': company_id, 'name': company_name, 'identifier': company_identifier}
 
+		#type
 		log_msg(f"Extracting type information.", "DEBUG")
 		type = all_properties['cw_type'] if 'cw_type' in all_properties.keys() else "Unknown_Type"
 		log_msg(f"Type tag found for {device_name}: {type}", "DEBUG")
@@ -144,6 +181,7 @@ if raw_response['code'] in (200, 201):
 			type_id = 0
 		device_array[device_name]['type'] = {'id': type_id, 'name': type}
 
+		# example static answers to additional questions
 		# log_msg("This is a server, so we need to answer some extra questions.", "DEBUG")
 		# if type == "Server":
 		# 	device_array[device_name]["questions"] = [
@@ -160,7 +198,7 @@ if raw_response['code'] in (200, 201):
 		log_msg(f"{k}: {v}", "DEBUG")
 else:
 	log_msg(f"Unable to fetch devices from LM: {raw_response['code']}\n\t{raw_response['err_out']}", "ERROR")
-
+# pprint(device_array);quit()
 #############################
 # SEND ITEMS TO CONNECTWISE #
 #############################
