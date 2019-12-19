@@ -248,7 +248,7 @@ for key, value in device_array.items():
 			if info: print(f'Failed.')
 			log_msg(f'Unable to create record for \"{key}\" with response code {post_response["code"]}: {post_response["body"]}. Request payload {value}', "ERROR")
 			new_failed[key] = value
-
+#the following outputs could be formulated into ds collect outputs to track the results over time.
 log_msg(f"{len(new_devices)} new devices added to CW.")
 log_msg(f"New devices added: {new_devices}", "DEBUG")
 
