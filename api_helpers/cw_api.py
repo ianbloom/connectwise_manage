@@ -89,6 +89,29 @@ def get_cw_type_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId
 			types = response.content
 	return {'code':response.status_code, 'items':types}
 
+def get_cw_manufacturer_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId):
+	query_size = 1000
+	last_found = False
+	items = {}
+	page = 1
+	while not last_found:
+		url = f'https://{_cw_site}/v4_6_release/apis/3.0/procurement/manufacturers?pagesize={query_size}&page={page}'
+		response = requests.get(url, data="", headers=header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId))
+		this_call_items = {}
+		if response.status_code in (200, 201):
+			for item in json.loads(response.content):
+				this_call_items[str(item['name'])] = {'id': item['id'],'name': item['name'],'inactiveFlag': item['inactiveFlag']}
+			links = {}
+			if len(response.headers['Link']) > 0:
+				for link in response.headers['Link'].split(","):
+					links[link.split(";")[1]] = link.split(";")[0]
+			last_found = ' rel="last"' not in links.keys()
+			items.update(this_call_items)
+			page += 1
+		else:
+			items = response.content
+	return {'code':response.status_code, 'items':items}
+
 ###########
 # POSTERS #
 ###########
