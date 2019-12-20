@@ -1,11 +1,180 @@
 #! /usr/bin/python3
-
-import api_helpers.cw_api as CWAPI
-import api_helpers.lm_api as LMAPI
-
-import json, argparse, re
+import json, argparse, re, base64, requests, hashlib, time, hmac
 from pprint import pprint, pformat
 from datetime import datetime
+
+###########################################################################
+#                          CW API CALL FUNCTIONS                          #
+###########################################################################
+def header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId, addnlheaderitems = {}):
+	header_dict = {}
+	header_dict['Content-Type'] = 'application/json'
+	header_dict['clientId'] = _cw_agentId
+	token = f'{_cw_company}+{_cw_api_id}:{_cw_api_key}'
+	encoded_token = (base64.b64encode(token.encode())).decode()
+	header_dict['Authorization'] = f'Basic {encoded_token}'
+	header_dict.update(addnlheaderitems)
+	return header_dict
+
+###########
+# GETTERS #
+###########
+def get_cw_config_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId):
+	query_size = 1000
+	last_found = False
+	devices = {}
+	page = 1
+	while not last_found:
+		url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/configurations?pagesize={query_size}&page={page}'
+		response = requests.get(url, data="", headers=header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId))
+		this_call_devices = {}
+		if response.status_code in (200, 201):
+			for device in json.loads(response.content):
+				this_call_devices[device['name']] = [device['id'], device['type']]
+			links = {}
+			if len(response.headers['Link']) > 0:
+				for link in response.headers['Link'].split(","):
+					links[link.split(";")[1]] = link.split(";")[0]
+			last_found = ' rel="last"' not in links.keys()
+			devices.update(this_call_devices)
+			page += 1
+		else:
+			devices = response
+	return {'code':response.status_code, 'items':devices}
+
+def get_cw_company_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId):
+	query_size = 1000
+	last_found = False
+	companies = {}
+	page = 1
+	while not last_found:
+		url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/companies?pagesize={query_size}&page={page}'
+		response = requests.get(url, data="", headers=header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId))
+		this_call_companies = {}
+		if response.status_code in (200, 201):
+			for company in json.loads(response.content):
+				this_call_companies[str(company['id'])] = {'id': company['id'],'name': company['name'],'identifier': company['identifier']}
+			links = {}
+			if len(response.headers['Link']) > 0:
+				for link in response.headers['Link'].split(","):
+					links[link.split(";")[1]] = link.split(";")[0]
+			last_found = ' rel="last"' not in links.keys()
+			companies.update(this_call_companies)
+			page += 1
+		else:
+			companies = response.content
+	return {'code':response.status_code, 'items':companies}
+
+def get_cw_type_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId):
+	query_size = 1000
+	last_found = False
+	types = {}
+	page = 1
+	while not last_found:
+		url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/configurations/types?pagesize={query_size}&page={page}'
+		response = requests.get(url, data="", headers=header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId))
+		this_call_types = {}
+		if response.status_code in (200, 201):
+			for type in json.loads(response.content):
+				types[type['name']] = type['id']
+			links = {}
+			if len(response.headers['Link']) > 0:
+				for link in response.headers['Link'].split(","):
+					links[link.split(";")[1]] = link.split(";")[0]
+			last_found = ' rel="last"' not in links.keys()
+			types.update(this_call_types)
+			page += 1
+		else:
+			types = response.content
+	return {'code':response.status_code, 'items':types}
+
+def get_cw_manufacturer_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId):
+	query_size = 1000
+	last_found = False
+	items = {}
+	page = 1
+	while not last_found:
+		url = f'https://{_cw_site}/v4_6_release/apis/3.0/procurement/manufacturers?pagesize={query_size}&page={page}'
+		response = requests.get(url, data="", headers=header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId))
+		this_call_items = {}
+		if response.status_code in (200, 201):
+			for item in json.loads(response.content):
+				this_call_items[str(item['name'])] = {'id': item['id'],'name': item['name'],'inactiveFlag': item['inactiveFlag']}
+			links = {}
+			if len(response.headers['Link']) > 0:
+				for link in response.headers['Link'].split(","):
+					links[link.split(";")[1]] = link.split(";")[0]
+			last_found = ' rel="last"' not in links.keys()
+			items.update(this_call_items)
+			page += 1
+		else:
+			items = response.content
+	return {'code':response.status_code, 'items':items}
+
+###########
+# POSTERS #
+###########
+def post_cw_configuration(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId, _config_dict):
+	url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/configurations'
+	data = json.dumps(_config_dict)
+	#something's incomplete in the _config_dict, not sure what.
+	response = requests.post(url, data=data, headers=header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId))
+	return {'code':response.status_code, 'body':json.loads(response.content.decode())}
+
+############
+# PATCHERS #
+############
+def patch_cw_configuration(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId, _config_dict, _config_id):
+	url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/configurations/{_config_id}'
+	patch_array = []
+	for key, value in _config_dict.items():
+		patch_dict = {'op':'replace',
+					  'path':key,
+					  'value':value}
+		patch_array.append(patch_dict)
+	data = json.dumps(patch_array)
+	response = requests.patch(url, data=data, headers=header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId))
+	return {'code':response.status_code, 'body':response.content}
+
+##############################################################################
+#                         END CW API CALL FUNCTIONS                          #
+##############################################################################
+
+###########################################################################
+#                          LM API CALL FUNCTIONS                          #
+###########################################################################
+def LM_GET(_lm_id, _lm_key, _lm_account, _resource_path, _query_params = {}, _data = '', _query_size = 1000):
+	items = []
+	last_item_found = False
+	status_code = 0
+	_query_params['size'] = _query_size
+	err_out = ""
+	while not last_item_found:
+		_query_params['offset'] = len(items)
+		_query_params_string = "?" + "&".join([f"{k}={v}" for k,v in _query_params.items()])
+		url = 'https://'+ _lm_account +'.logicmonitor.com/santaba/rest' + _resource_path + _query_params_string
+		epoch = str(int(time.time() * 1000))
+		requestVars = 'GET' + epoch + _data + _resource_path
+		authCode = hmac.new(_lm_key.encode(),msg=requestVars.encode(),digestmod=hashlib.sha256).hexdigest()
+		signature = base64.b64encode(authCode.encode())
+		auth = 'LMv1 ' + _lm_id + ':' + signature.decode() + ':' + epoch
+		headers = {'Content-Type':'multipart/form-data','Authorization':auth,}
+		response = requests.get(url, data=_data, headers=headers)
+		status_code = response.status_code
+		current_call_result = json.loads(response.content)
+		data = current_call_result['data']
+		errmsg = current_call_result['errmsg']
+		status = current_call_result['status']
+		fetched_count = len(data['items'])
+		fetched_items = data['items']
+		items += fetched_items
+		last_item_found = fetched_count < _query_size
+		err_out += f"Call to {url} results:\n\tHTTP Response code: {status_code}\n\tError Message: {errmsg}\n\tStatus code: {status}\n\tItems fetched: {fetched_count}\n\tTotal items fetched: {len(items)}\n\tLast item found: {last_item_found}\n"
+	return {'code':status_code, 'items':items, 'err_out': err_out}
+
+###############################################################################
+#                          END LM API CALL FUNCTIONS                          #
+###############################################################################
 
 query_size = 1000 #number of items to pull from the LM API, helps with pagination
 
@@ -40,7 +209,7 @@ log_msg("START SCRIPT EXECUTION")
 # FETCH CURRENT ITEMS FROM CW #
 ###############################
 log_msg(f"Fetching current manufacturer list from CW...", end="")
-cw_manufacturer_response = CWAPI.get_cw_manufacturer_list(**cw_creds)
+cw_manufacturer_response = get_cw_manufacturer_list(**cw_creds)
 if cw_manufacturer_response['code'] in (200, 201):
 	cw_manufacturers = cw_manufacturer_response['items']
 	if info: print(f"Done fetching {len(cw_manufacturers)} manufacturers.")
@@ -51,7 +220,7 @@ else:
 log_msg(f"Fetched manufacturer list from CW: {cw_manufacturers.keys()}", "DEBUG")
 
 log_msg(f"Fetching current device list from CW...", end="")
-cw_device_response = CWAPI.get_cw_config_list(**cw_creds)
+cw_device_response = get_cw_config_list(**cw_creds)
 if cw_device_response['code'] in (200, 201):
 	cw_devices = cw_device_response['items']
 	if info: print(f"Done fetching {len(cw_devices)} configurations.")
@@ -62,7 +231,7 @@ else:
 log_msg(f"Fetched CI list from CW: {cw_devices.keys()}", "DEBUG")
 
 log_msg(f"Fetching current company list from CW...", end="")
-cw_company_response = CWAPI.get_cw_company_list(**cw_creds)
+cw_company_response = get_cw_company_list(**cw_creds)
 if cw_company_response['code'] in (200, 201):
 	cw_companies = cw_company_response['items']
 	if info: print(f"Done fetching {len(cw_companies.keys())} companies.")
@@ -71,10 +240,10 @@ else:
 	error_message = json.loads(cw_company_response['items'].decode())
 	log_msg(f"Problem obtaining current company list from CW Manage: {cw_company_response['code']} {error_message['code']}: {error_message['message']}", "ERROR")
 	cw_companies = {}
-log_msg(f"Fetched company list from CW: {cw_companies.keys()}", "DEBUG")
+log_msg(f"Fetched company list from CW: {cw_companies}", "INFO")
 
 log_msg(f"Fetching current type list from CW...", end="")
-cw_type_response = CWAPI.get_cw_type_list(**cw_creds)
+cw_type_response = get_cw_type_list(**cw_creds)
 if cw_type_response['code'] in (200, 201):
 	cw_types = cw_type_response['items']
 	if info: print(f"Done fetching {len(cw_types)} types.")
@@ -88,7 +257,7 @@ log_msg(f"Fetched type list from CW: {cw_types.keys()}", "DEBUG")
 # GET ALL DEVICES FROM LM #
 ###########################
 queryParams = {"fields": "id,name,displayName,hostGroupIds,customProperties,systemProperties,autoProperties,inheritedProperties"}
-raw_response = LMAPI.LM_GET(_resource_path = '/device/devices', _query_params = queryParams, **lm_creds)
+raw_response = LM_GET(_resource_path = '/device/devices', _query_params = queryParams, **lm_creds)
 if raw_response['code'] in (200, 201):
 	devices = raw_response['items']
 	device_array = {}
@@ -226,7 +395,7 @@ for key, value in device_array.items():
 		type_from_lm = value['type']['name']
 		if type_from_cw == type_from_lm:
 			get_id = cw_devices[key][0]
-			patch_response = CWAPI.patch_cw_configuration(_config_dict = value, _config_id = get_id, **cw_creds)
+			patch_response = patch_cw_configuration(_config_dict = value, _config_id = get_id, **cw_creds)
 			if(patch_response['code'] == 200 or patch_response['code'] == 201):
 				if info: print(f'Done.')
 				updated_devices[key] = value
@@ -240,7 +409,7 @@ for key, value in device_array.items():
 			update_failed[key] = value
 	else:
 		log_msg(f"\"{key}\" does not exist in CW Manage, creating CI...", end="")
-		post_response = CWAPI.post_cw_configuration(_config_dict = value, **cw_creds)
+		post_response = post_cw_configuration(_config_dict = value, **cw_creds)
 		if(post_response['code'] == 200 or post_response['code'] == 201):
 			if info: print(f'Done.')
 			new_devices[key] = value
@@ -268,5 +437,12 @@ log_msg(f"Valid companies: {cw_companies.keys()}", "DEBUG")
 log_msg(f"{len(bad_type_devices)} devices were not synchronized to CW due to a type mismatch")
 log_msg(f"Devices not synchronized due to bad type: {bad_type_devices.items()}", "DEBUG")
 log_msg(f"Valid companies: {cw_types.keys()}", "DEBUG")
+
+print(f"""new_devices: {len(new_devices)}
+new_failed: {len(new_failed)}
+updated_devices: {len(updated_devices)}
+update_failed: {len(update_failed)}
+bad_company_devices: {len(bad_company_devices)}
+bad_type_devices: {len(bad_type_devices)}""")
 
 log_msg("END SCRIPT EXECUTION")
