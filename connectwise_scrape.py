@@ -1,4 +1,7 @@
 #! /usr/bin/python3
+################################################################################
+# © 2007-2019 - LogicMonitor, Inc. All rights reserved.                        #
+################################################################################
 import json, argparse, re, base64, requests, hashlib, time, hmac
 from pprint import pprint, pformat
 from datetime import datetime
