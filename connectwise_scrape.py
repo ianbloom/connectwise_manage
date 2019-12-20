@@ -189,7 +189,19 @@ def log_msg(msg, severity = "INFO", end = "\n", crb = False):
 # CLI ARGUMENT HANDLING #
 #########################
 parser=argparse.ArgumentParser()
-parser.add_argument('-file', help='Path to file containing API credentials', default='keyfile.txt')
+# script parameters for ds
+# # --info
+# --cw_agentid ##lm2cw.cw_agentid.pass##
+# --cw_company ##lm2cw.cw_company##
+# --cw_private ##lm2cw.cw_private.pass##
+# --cw_public ##lm2cw.cw_public##
+# --cw_site ##lm2cw.cw_site##
+# --lm_company ##lm2cw.lm_company##
+# --lm_id ##lm2cw.lm_id##
+# --lm_key ##lm2cw.lm_key.pass##
+
+for arg in ["cw_agentid", "cw_company", "cw_private", "cw_public", "cw_site", "lm_company", "lm_id", "lm_key"]:
+	parser.add_argument('--'+arg)
 parser.add_argument('--debug', help='Turns on very verbose output.', action='store_true')
 parser.add_argument('--info', help='Turns on information messages (these may or may not indicate a problem).', action='store_true')
 args = parser.parse_args()
@@ -199,10 +211,8 @@ info = args.info
 ###################
 # PARSE API CREDS #
 ###################
-with open(args.file) as file:
-	config = json.loads(file.read())
-lm_creds = {"_lm_id": config['lm_id'], "_lm_key": config['lm_key'], "_lm_account": config['lm_company']}
-cw_creds = {"_cw_api_id": config['cw_id'], "_cw_api_key": config['cw_key'], "_cw_company": config['cw_company'], "_cw_site": config['cw_site'], "_cw_agentId": config['cw_agentId']}
+lm_creds = {"_lm_id": args.lm_id, "_lm_key": args.lm_key, "_lm_account": args.lm_company}
+cw_creds = {"_cw_api_id": args.cw_public, "_cw_api_key": args.cw_private, "_cw_company": args.cw_company, "_cw_site": args.cw_site, "_cw_agentId": args.cw_agentid}
 
 log_msg("START SCRIPT EXECUTION")
 ###############################
