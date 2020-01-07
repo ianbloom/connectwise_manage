@@ -193,7 +193,7 @@ def log_msg(msg, severity = "INFO", end = "\n", crb = False):
 #########################
 parser=argparse.ArgumentParser()
 # script parameters for ds
-# # --info
+# --info
 # --cw_agentid ##lm2cw.cw_agentid.pass##
 # --cw_company ##lm2cw.cw_company##
 # --cw_private ##lm2cw.cw_private.pass##
@@ -211,9 +211,9 @@ args = parser.parse_args()
 debug = args.debug
 info = args.info
 
-###################
-# PARSE API CREDS #
-###################
+#######################
+# CREATE API KEYRINGS #
+#######################
 lm_creds = {"_lm_id": args.lm_id, "_lm_key": args.lm_key, "_lm_account": args.lm_company}
 cw_creds = {"_cw_api_id": args.cw_public, "_cw_api_key": args.cw_private, "_cw_company": args.cw_company, "_cw_site": args.cw_site, "_cw_agentId": args.cw_agentid}
 
@@ -253,7 +253,7 @@ else:
 	error_message = json.loads(cw_company_response['items'].decode())
 	log_msg(f"Problem obtaining current company list from CW Manage: {cw_company_response['code']} {error_message['code']}: {error_message['message']}", "ERROR")
 	cw_companies = {}
-log_msg(f"Fetched company list from CW: {cw_companies}", "INFO")
+log_msg(f"Fetched company list from CW: {cw_companies}", "DEBUG")
 
 log_msg(f"Fetching current type list from CW...", end="")
 cw_type_response = get_cw_type_list(**cw_creds)
@@ -270,11 +270,13 @@ log_msg(f"Fetched type list from CW: {cw_types.keys()}", "DEBUG")
 # GET ALL DEVICES FROM LM #
 ###########################
 queryParams = {"fields": "id,name,displayName,hostGroupIds,customProperties,systemProperties,autoProperties,inheritedProperties"}
+log_msg(f"Fetching current device list from LM...", end="")
 raw_response = LM_GET(_resource_path = '/device/devices', _query_params = queryParams, **lm_creds)
 if raw_response['code'] in (200, 201):
 	devices = raw_response['items']
 	device_array = {}
-	log_msg(f"Fetched {len(devices)} devices from {lm_creds['_lm_account']}.logicmonitor.com.")
+	if info: print(f"Done fetching {len(devices)} devices.")
+	#log_msg(f"Fetched {len(devices)} devices from {lm_creds['_lm_account']}.logicmonitor.com.")
 	for item in devices:
 		log_msg(f"Processing data. (Extracting device properties from LM data to use in CW fields)", "DEBUG")
 		all_properties = {}
@@ -379,7 +381,8 @@ if raw_response['code'] in (200, 201):
 	for k,v in device_array.items():
 		log_msg(f"{k}: {v}", "DEBUG")
 else:
-	log_msg(f"Unable to fetch devices from LM: {raw_response['code']}\n\t{raw_response['err_out']}", "ERROR")
+	if info: print("Failed.")
+	log_msg(f"Problem obtaining current device list from LM: {raw_response['code']}\n\t{raw_response['err_out']}", "ERROR")
 # pprint(device_array);quit()
 #############################
 # SEND ITEMS TO CONNECTWISE #
