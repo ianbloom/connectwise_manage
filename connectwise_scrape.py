@@ -344,7 +344,7 @@ if raw_response['code'] in (200, 201):
 				company_name = cw_companies[company_id]['name']
 				company_identifier = cw_companies[company_id]['identifier']
 			else:
-				log_msg(f"{company} was not found in cw_companies. Injecting defaults.", "DEBUG")
+				log_msg(f"{company_id} was not found in cw_companies. Injecting defaults.", "DEBUG")
 				company_name = "Unknown_Company"
 				company_identifier = 0
 		else:
@@ -366,12 +366,12 @@ if raw_response['code'] in (200, 201):
 		device_array[device_name]['type'] = {'id': type_id, 'name': type}
 
 		# example static answers to additional questions
-		# log_msg("This is a server, so we need to answer some extra questions.", "DEBUG")
-		# if type == "Server":
-		# 	device_array[device_name]["questions"] = [
-		# 		{"questionId": 23, "answer": "File & Print Server"},
-		# 		{"questionId": 32, "answer": "Windows 2003 Standard Server"}
-		# 	]
+		log_msg("This is a server, so we need to answer some extra questions.", "DEBUG")
+		if type == "Server":
+			device_array[device_name]["questions"] = [
+				{"questionId": 23, "answer": "File & Print Server"},
+				{"questionId": 32, "answer": "Windows 2003 Standard Server"}
+			]
 
 		log_msg(f"Done extracting properties", "DEBUG")
 		log_msg(f"Raw device details: {item}", "DEBUG")
