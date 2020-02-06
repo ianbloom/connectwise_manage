@@ -1,7 +1,0 @@
-{"lm_id": "LM API ID",
-"lm_key": "LM API KEY",
-"lm_company": "LM COMPANY",
-"cw_id": "CW API ID",
-"cw_key": "CW API KEY",
-"cw_company": "CW COMPANY",
-"cw_site": "CW SITE"}
