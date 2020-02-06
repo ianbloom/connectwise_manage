@@ -120,7 +120,6 @@ def get_cw_manufacturer_list(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw
 def post_cw_configuration(_cw_api_id, _cw_api_key, _cw_company, _cw_site, _cw_agentId, _config_dict):
 	url = f'https://{_cw_site}/v4_6_release/apis/3.0/company/configurations'
 	data = json.dumps(_config_dict)
-	#something's incomplete in the _config_dict, not sure what.
 	response = requests.post(url, data=data, headers=header_build(_cw_company, _cw_api_id, _cw_api_key, _cw_agentId))
 	return {'code':response.status_code, 'body':json.loads(response.content.decode())}
 
@@ -308,9 +307,7 @@ if raw_response['code'] in (200, 201):
 		#osType
 		if 'system.sysinfo' in all_properties.keys():
 			device_array[device_name]['osType'] = all_properties['system.sysinfo'][:250]
-
-		#manufacturer
-		if 'system.sysinfo' in all_properties.keys():
+			#manufacturer
 			lm_manufacturer = all_properties['system.sysinfo'].split(" ",1)[0]
 			if lm_manufacturer in cw_manufacturers.keys():
 				device_array[device_name]['manufacturer'] = {"id": cw_manufacturers[lm_manufacturer]['id'], "name": cw_manufacturers[lm_manufacturer]['name']}
@@ -393,7 +390,7 @@ new_devices = {}
 new_failed = {}
 updated_devices = {}
 update_failed = {}
-
+# CW API doesn't support bulk post nor patch. Must do one call for every device :-(
 for key, value in device_array.items():
 	if value['company']['id'] not in cw_companies.keys():
 		log_msg(f"\"{key}\" LM company tag ({value['company']['name']}) does not exist in CW. \"{key}\" not synchronized to CW.", "ERROR")
