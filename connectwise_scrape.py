@@ -333,8 +333,8 @@ if raw_response['code'] in (200, 201):
 
 		#company
 		log_msg(f"Extracting company information.", "DEBUG")
-		if 'connectwise_training.companyid' in all_properties.keys():
-			company_id = all_properties['connectwise_training.companyid']
+		if 'cw_company' in all_properties.keys():
+			company_id = all_properties['cw_company']
 			log_msg(f"Company tag found for {device_name}: {company_id}", "DEBUG")
 			if company_id in cw_companies.keys():
 				log_msg(f"{company_id} was found in cw_companies. Injecting metadata", "DEBUG")
