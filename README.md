@@ -2,7 +2,7 @@
 
 # IMPORTANT NOTE
 
-This project has been forked by Stuart Weenig to take it in a slightly different direction. Please visit https://github.com/sweenig/connectwise_manage for the up to date version of this script.
+This project has been forked by Stuart Weenig to take it in a slightly different direction. Please visit https://github.com/sweenig/connectwise_manage for that version of this script.
 
 ## Introduction
 This script synchronizes resources from LogicMonitor into ConnectWise Manage CMDB. It can be used as the script for a Python based datasource in LogicMonitor so that it runs on a regular schedule and reports back the count of devices in each state. This also allows for thresholding/alarming.
